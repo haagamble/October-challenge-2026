@@ -269,6 +269,35 @@ h1 {
   font-weight: 600;
 }
 
+.confetti-burst {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -16px;
+  width: 9px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--confetti-color);
+  animation: confetti-fall 2.8s ease-in forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, -8px, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--confetti-drift), 105vh, 0) rotate(var(--confetti-spin));
+  }
+}
+
 .goal-yesterday {
   margin-top: 14px;
   padding: 12px;

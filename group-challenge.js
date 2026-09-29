@@ -8,6 +8,7 @@ const DAYS_IN_MONTH = 30;
 const DAILY_PERSON_GOAL = 250;
 const TEST_STORAGE_KEY = 'group-challenge-test-data';
 const TEST_IDENTITY_STORAGE_KEY = 'group-challenge-test-player';
+const GOAL_CELEBRATION_KEY = 'group-challenge-2026-goal-celebrated';
 const AUTH_STORAGE_KEY = 'group-challenge-firebase-auth';
 const INSTALL_DISMISSED_KEY = 'group-challenge-install-dismissed';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -45,6 +46,7 @@ let hasInvite = false;
 let joinOpen = false;
 let loadState = 'loading';
 let installPrompt = null;
+let pendingOwnedSaves = 0;
 
 const els = {};
 
@@ -368,6 +370,7 @@ function resetTestData() {
   if (!TEST_MODE) return;
   localStorage.removeItem(TEST_STORAGE_KEY);
   localStorage.removeItem(TEST_IDENTITY_STORAGE_KEY);
+  localStorage.removeItem(`${GOAL_CELEBRATION_KEY}-test`);
   participants = [];
   entriesByUid = {};
   ownedUid = null;
@@ -547,11 +550,12 @@ function renderGoalMeta() {
   const yesterdayPaceTarget = computeTeamGoalThroughDay(completedDays);
   const yesterdayDelta = yesterdayTotal - yesterdayPaceTarget;
   const challengeEnded = completedDays >= DAYS_IN_MONTH;
+  const goalReached = goalTotal > 0 && monthTotal >= goalTotal;
   const teamPointsNeededEachDay = Math.ceil(Math.max(0, goalTotal - yesterdayTotal) / daysRemaining);
-  const averageNeededPerParticipant = Math.ceil(teamPointsNeededEachDay / participants.length);
+  const averageNeededPerParticipant = Math.ceil(Math.max(0, goalTotal - yesterdayTotal) / daysRemaining / participants.length);
   const teamPointsRemainingToday = Math.max(0, teamPointsNeededEachDay - teamTotal);
   const showTodayTarget = !isBeforeChallenge() && !challengeEnded && goalTotal > 0;
-  const showAverageMessage = !isBeforeChallenge() && !challengeEnded && goalTotal > 0;
+  const showAverageMessage = !isBeforeChallenge() && !challengeEnded && goalTotal > 0 && !goalReached;
 
   els.teamToday.textContent = formatNumber(teamTotal);
   els.teamTodayRemaining.classList.toggle('hidden', !showTodayTarget);
@@ -567,11 +571,12 @@ function renderGoalMeta() {
     ? `The challenge starts ${formatDate(getChallengeStartDate())}.`
     : goalTotal === 0
     ? 'The team goal begins when someone logs their first points.'
-    : challengeEnded
-    ? monthTotal >= goalTotal
-      ? 'Challenge complete! We reached our group goal.'
-      : `Challenge complete. We finished ${formatNumber(goalTotal - monthTotal)} points short of our group goal.`
+    : goalReached
+      ? `We did it! We reached our group goal of ${formatNumber(goalTotal)} points!`
+      : challengeEnded
+        ? `Challenge complete. We finished ${formatNumber(goalTotal - monthTotal)} points short of our group goal.`
     : `We need to average ${formatNumber(averageNeededPerParticipant)} points daily per person to win the month. Since not everyone can participate every day, aim closer to 400 points when you can to help keep the team on track.`;
+  if (goalReached && pendingOwnedSaves === 0) celebrateGoalReached();
   els.goalTodayTarget.classList.toggle('hidden', !showTodayTarget);
   els.goalTodayTarget.textContent = showTodayTarget
     ? `Team points needed each day: ${formatNumber(teamPointsNeededEachDay)}`
@@ -783,14 +788,43 @@ async function setOwnedEntry(dateKey, entry) {
   } else {
     entriesByUid[ownedUid][dateKey] = entry;
   }
+  pendingOwnedSaves += 1;
   render();
   try {
     await saveOwnedRecord();
   } catch (error) {
     showToast(error.message || 'Save failed. Check your connection.');
     await fetchAll();
+  } finally {
+    pendingOwnedSaves = Math.max(0, pendingOwnedSaves - 1);
     render();
   }
+}
+
+function celebrateGoalReached() {
+  const storageKey = TEST_MODE ? `${GOAL_CELEBRATION_KEY}-test` : GOAL_CELEBRATION_KEY;
+  if (localStorage.getItem(storageKey) === 'true') return;
+  localStorage.setItem(storageKey, 'true');
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const colors = ['#23674f', '#e77c50', '#e5b943', '#4f8da8', '#ca5360'];
+  const burst = document.createElement('div');
+  burst.className = 'confetti-burst';
+  burst.setAttribute('aria-hidden', 'true');
+
+  for (let index = 0; index < 48; index += 1) {
+    const piece = document.createElement('span');
+    piece.className = 'confetti-piece';
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.setProperty('--confetti-color', colors[index % colors.length]);
+    piece.style.setProperty('--confetti-drift', `${Math.round(Math.random() * 180 - 90)}px`);
+    piece.style.setProperty('--confetti-spin', `${Math.round(Math.random() * 900 + 360)}deg`);
+    piece.style.animationDelay = `${Math.random() * 0.45}s`;
+    burst.appendChild(piece);
+  }
+
+  document.body.appendChild(burst);
+  window.setTimeout(() => burst.remove(), 3500);
 }
 
 function renderPersonalSummary() {
