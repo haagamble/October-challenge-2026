@@ -142,7 +142,7 @@ server-side aggregation layer such as Cloud Functions.
 
 ## Deploy With GitHub Pages
 
-1. Use the separate repository `haagamble/Oct-group-challenge-2026`. This
+1. Use the separate repository `haagamble/October-challenge-2026`. This
    folder's `origin` points to that repository for both fetch and push. Create
    the empty GitHub repository before the first push; never point this copy
    at `haagamble/group-challenge-2026`.
