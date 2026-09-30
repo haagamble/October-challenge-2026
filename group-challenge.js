@@ -1,4 +1,4 @@
-const DB_URL = window.GROUP_CHALLENGE_FIREBASE_CONFIG?.databaseURL || '';
+const DB_URL = (window.GROUP_CHALLENGE_FIREBASE_CONFIG?.databaseURL || '').replace(/\/+$/, '');
 const FIREBASE_API_KEY = window.GROUP_CHALLENGE_FIREBASE_CONFIG?.apiKey || '';
 const JOIN_CODE = 'oct26';
 const CHALLENGE_DATA_PATH = 'groupChallengeOctober2026';
@@ -11,7 +11,7 @@ const DAILY_PERSON_GOAL = 250;
 const TEST_STORAGE_KEY = 'october-2026-group-challenge-test-data';
 const TEST_IDENTITY_STORAGE_KEY = 'october-2026-group-challenge-test-player';
 const GOAL_CELEBRATION_KEY = 'october-2026-group-challenge-2026-goal-celebrated';
-const AUTH_STORAGE_KEY = 'october-2026-group-challenge-firebase-auth';
+const AUTH_STORAGE_KEY = `october-2026-group-challenge-firebase-auth:${DB_URL}`;
 const INSTALL_DISMISSED_KEY = 'october-2026-group-challenge-install-dismissed';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -294,7 +294,7 @@ function sanitizeEntries(entries) {
       const rawValue = Number(entry.values?.[activityId] || 0);
       values[activityId] = normalizeActivityAmount(activity, rawValue);
     });
-    clean[dateKey] = { selected, values };
+    clean[dateKey] = entry.rest === true ? { rest: true, selected: [], values: {} } : { selected, values };
   }
 
   return clean;
@@ -573,12 +573,12 @@ function renderGoalMeta() {
   els.goalMessage.textContent = isBeforeChallenge()
     ? `The challenge starts ${formatDate(getChallengeStartDate())}.`
     : goalTotal === 0
-    ? 'The team goal begins when someone logs their first points.'
+    ? 'The team goal begins with first points or a Rest selection on the opening day of a week.'
     : goalReached
       ? `We did it! We reached our group goal of ${formatNumber(goalTotal)} points!`
       : challengeEnded
         ? `Challenge complete. We finished ${formatNumber(goalTotal - monthTotal)} points short of our group goal.`
-    : `We need to average ${formatNumber(averageNeededPerParticipant)} points daily per person to win the month. Since not everyone can participate every day, aim closer to 400 points when you can to help keep the team on track.`;
+    : `We need to average ${formatNumber(averageNeededPerParticipant)} points daily per person to win the month. Rest days are already included in our goal. Log only on your scoring days.`;
   if (goalReached && pendingOwnedSaves === 0) celebrateGoalReached();
   els.goalTodayTarget.classList.toggle('hidden', !showTodayTarget);
   els.goalTodayTarget.textContent = showTodayTarget
@@ -627,7 +627,7 @@ function renderTeamStats() {
       ${best ? `<p>Best team total: <b>${formatNumber(best.points)} points</b> on ${formatDate(best.date)}.</p>` : ''}
     </div>
     <p class="team-stats-note">Each day stands on its own: we can meet that day's goal even while catching up for the month. Today's results are still in progress and are excluded from the summary above.</p>
-    <p class="team-stats-note">The daily goal is 250 points per participant, starting with their first day of points. The participant average includes skipped days after that. Participation counts people who logged points. Team totals can grow as more people start.</p>
+    <p class="team-stats-note">The daily goal is 250 points per participant on scoring days. Each eligible full week includes one rest day with no goal. Additional missed days still count toward the goal. Participation counts people who logged points. Team totals can grow as more people start.</p>
     ${rows.length ? rows.slice().reverse().map(row => `
       <section class="team-stats-day ${row.met ? 'goal-met' : ''}">
         <h3>${formatDate(row.date)}${row.isToday ? ' · Today, in progress' : ''}</h3>
@@ -642,25 +642,67 @@ function renderTeamStats() {
       </section>`).join('') : '<p>The challenge has not started yet.</p>'}`;
 }
 
+function renderRestSchedule() {
+  const day = getCurrentDate().getUTCDate();
+  const week = getRestWeek(ownedUid, day);
+  const status = document.getElementById('restStatus');
+  const button = document.getElementById('restButton');
+  button.disabled = !canChooseRestToday();
+  button.textContent = week.restDay === day ? 'Today is Rest' : 'Rest today';
+  button.onclick = chooseRestToday;
+  if (!isInChallengeMonth()) {
+    status.textContent = isBeforeChallenge() ? 'Rest choices open October 1, Pacific time.' : 'October challenge complete.';
+  } else if (day > 28) {
+    status.textContent = 'October 29–31 is a partial week: no rest allowance.';
+  } else if (!ownedUid) {
+    status.textContent = 'Join to log activities or choose Rest today.';
+  } else if (week.restDay !== null) {
+    status.textContent = week.restDay === day
+      ? `${week.automatic ? 'Automatic rest day. ' : ''}Enjoy your break! Your weekly goal already includes it.`
+      : `Your rest day was October ${week.restDay}. Additional missed days count toward your goal.`;
+  } else if (week.eligible || canChooseRestToday()) {
+    status.textContent = computeRawPlayerPoints(ownedUid, challengeKey(day)) > 0
+      ? 'One rest day this week. Clear today’s activity values before choosing Rest.'
+      : 'One required rest day this week. Choose Rest today, or your first completed zero-point day becomes Rest. After six scoring days, the seventh is Rest.';
+  } else {
+    status.textContent = 'No rest allowance for a partial starting week. Eligibility begins with your first points, or Rest on October 1, 8, 15, or 22.';
+  }
+  const end = Math.min(week.end, DAYS_IN_MONTH);
+  document.getElementById('weekScheduleTitle').textContent = `Double points: October ${week.start}–${end}`;
+  const list = document.getElementById('weekSchedule');
+  list.replaceChildren();
+  for (let date = week.start; date <= end; date++) {
+    const item = document.createElement('li');
+    const isToday = isInChallengeMonth() && date === day;
+    if (isToday) item.setAttribute('aria-current', 'date');
+    const activity = getActivity(DOUBLE_ACTIVITY_SCHEDULE[date - 1]);
+    item.textContent = `Oct ${date}${isToday ? ' · Today' : ''} — ${activity.name}${week.restDay === date ? ' · Rest' : ''}`;
+    list.appendChild(item);
+  }
+}
+
 function renderDailyActivities() {
   const today = getCurrentDate();
   const dateKey = formatDateKey(today);
   const currentEntry = getPlayerEntry(ownedUid, dateKey) || { selected: [], values: {} };
   const doubleId = getDoubleActivityId(today);
   const canLog = canLogToday();
+  renderRestSchedule();
 
   els.todayHeadline.textContent = isBeforeChallenge()
     ? `Starts ${formatDate(today)}`
     : formatDate(today);
   document.getElementById('dailyHint').textContent = isBeforeChallenge()
     ? 'You can join now. Logging opens when the challenge starts on Pacific time.'
-    : 'Choose 3 activities. Aim for 250 points today. Max 400. Challenge days follow Pacific time.';
+    : isRestDay(ownedUid, dateKey)
+    ? 'Today is your rest day. No challenge points or goal contribution today.'
+    : 'Choose 3 activities on scoring days. Aim for 250 points. Max 400. Days follow Pacific time.';
   els.doubleDayBadge.textContent = `2x today: ${getActivity(doubleId).name}`;
   els.doubleDayBadge.classList.remove('hidden');
   els.activityGrid.replaceChildren();
 
   ACTIVITY_DEFS.forEach((activity) => {
-    const selected = currentEntry.selected.includes(activity.id);
+    const selected = currentEntry.selected?.includes(activity.id) || false;
     const isDouble = activity.id === doubleId;
     const card = document.createElement('div');
     card.className = `activity-card ${selected ? 'selected' : ''} ${isDouble ? 'double' : ''}`;
@@ -742,6 +784,10 @@ function renderDailyActivities() {
 }
 
 function toggleActivity(activityId) {
+  if (!canLogToday()) {
+    showToast('Logging is unavailable today. Check your rest-day status.');
+    return;
+  }
   if (isBeforeChallenge()) {
     showToast(`The challenge starts ${formatDate(getChallengeStartDate())}.`);
     return;
@@ -772,7 +818,7 @@ function toggleActivity(activityId) {
 }
 
 function updateActivityValue(activityId, value) {
-  if (isBeforeChallenge()) return;
+  if (!canLogToday()) return;
   if (!ownedUid) return;
   const dateKey = formatDateKey(getCurrentDate());
   const entry = getPlayerEntry(ownedUid, dateKey) || { selected: [], values: {} };
@@ -784,9 +830,10 @@ function updateActivityValue(activityId, value) {
 }
 
 async function setOwnedEntry(dateKey, entry) {
-  if (!ownedUid) return;
+  if (!ownedUid || dateKey !== actualTodayKey() || !isInChallengeMonth()) return;
+  if (entry.rest ? !canChooseRestToday() : !canLogToday()) return;
   if (!entriesByUid[ownedUid]) entriesByUid[ownedUid] = {};
-  if (entry.selected.length === 0) {
+  if (!entry.rest && entry.selected.length === 0) {
     delete entriesByUid[ownedUid][dateKey];
   } else {
     entriesByUid[ownedUid][dateKey] = entry;
@@ -855,7 +902,8 @@ function renderPersonalActivities(entry) {
   if (!entry?.selected?.length) {
     const empty = document.createElement('div');
     empty.className = 'personal-activity-empty';
-    empty.textContent = 'No activities entered yet today.';
+    empty.textContent = isRestDay(ownedUid, formatDateKey(getCurrentDate()))
+      ? 'Rest day - your goal already includes this break.' : 'No activities entered yet today.';
     els.personalActivities.appendChild(empty);
     return;
   }
@@ -895,10 +943,10 @@ function renderDailyHistory() {
     const heading = document.createElement('h3');
     heading.textContent = `${formatDate(date)} — ${formatNumber(computePlayerTotalsForDate(ownedUid, dateKey))} pts`;
     section.appendChild(heading);
-    if (!entry?.selected?.length) {
+    if (isRestDay(ownedUid, dateKey) || !entry?.selected?.length) {
       const empty = document.createElement('p');
       empty.className = 'personal-activity-empty';
-      empty.textContent = 'No activity logged';
+      empty.textContent = isRestDay(ownedUid, dateKey) ? 'Rest day - 0 points, no daily goal' : 'No activity logged';
       section.appendChild(empty);
     } else {
       const list = document.createElement('ul');
@@ -966,10 +1014,10 @@ function renderParticipationList() {
     const item = document.createElement('div');
     item.className = 'participant-item';
     item.innerHTML = `<span class="participant-name">${escapeHtml(participant.name)}</span>`;
-    if (hasSaved) {
+    if (hasSaved || isRestDay(participant.uid, today)) {
       const status = document.createElement('span');
       status.className = 'participant-status active';
-      status.textContent = 'Participating';
+      status.textContent = isRestDay(participant.uid, today) ? 'Rest day' : 'Participating';
       item.appendChild(status);
     }
     els.participationList.appendChild(item);
@@ -982,8 +1030,13 @@ function computeTeamTotalForDate(date) {
 }
 
 function computePlayerTotalsForDate(uid, dateKey) {
+  if (isRestDay(uid, dateKey)) return 0;
+  return computeRawPlayerPoints(uid, dateKey);
+}
+
+function computeRawPlayerPoints(uid, dateKey) {
   const entry = getPlayerEntry(uid, dateKey);
-  if (!entry?.selected) return 0;
+  if (entry?.rest || !entry?.selected) return 0;
 
   const doubleActivityId = getDoubleActivityId(new Date(`${dateKey}T00:00:00Z`));
   return entry.selected.reduce((total, activityId) => {
@@ -1017,7 +1070,7 @@ function computePlayerDailyAverage(uid) {
   const entryMap = entriesByUid[uid] || {};
   const loggedDates = Object.keys(entryMap).filter((dateKey) => {
     const entry = entryMap[dateKey];
-    return entry?.selected?.length > 0;
+    return entry?.selected?.length > 0 && !isRestDay(uid, dateKey);
   });
   if (!loggedDates.length) return 0;
 
@@ -1026,24 +1079,93 @@ function computePlayerDailyAverage(uid) {
 }
 
 function computePlayerParticipationDays(uid, todayKey) {
-  const entryMap = entriesByUid[uid] || {};
-  return Object.keys(entryMap).filter((dateKey) => {
-    const entry = entryMap[dateKey];
-    return isChallengeDateKey(dateKey) && dateKey < todayKey && entry?.selected?.length > 0;
-  }).length;
+  let days = 0;
+  for (let day = 1; day <= DAYS_IN_MONTH; day++) {
+    const key = challengeKey(day);
+    if (key >= todayKey) break;
+    if (isRestDay(uid, key) || computePlayerTotalsForDate(uid, key) > 0) days++;
+  }
+  return days;
+}
+
+// Rest is derived from saved entries and the shared Pacific date. Automatic rest
+// never writes another participant's record. Unused allowances reserve week-end
+// in goal calculations so each eligible full week always costs six scoring days.
+function challengeKey(day) {
+  return formatDateKey(dateFromChallengeParts(CHALLENGE_YEAR, CHALLENGE_MONTH + 1, day));
+}
+
+function actualTodayKey() {
+  const parts = getChallengeDateParts();
+  return formatDateKey(dateFromChallengeParts(parts.year, parts.month, parts.day));
+}
+
+function getParticipationStartDay(uid) {
+  const today = actualTodayKey();
+  const first = Object.keys(entriesByUid[uid] || {}).sort().find(key => {
+    if (!isChallengeDateKey(key) || key > today) return false;
+    const day = Number(key.slice(-2));
+    return computeRawPlayerPoints(uid, key) > 0 ||
+      ([1, 8, 15, 22].includes(day) && getPlayerEntry(uid, key)?.rest === true);
+  });
+  return first ? Number(first.slice(-2)) : null;
+}
+
+function getRestWeek(uid, day) {
+  const start = Math.floor((day - 1) / 7) * 7 + 1;
+  const end = start + 6;
+  const first = getParticipationStartDay(uid);
+  const eligible = day >= 1 && day <= 28 && first !== null && first <= start;
+  let restDay = null;
+  let automatic = false;
+  if (eligible) {
+    const today = actualTodayKey();
+    for (let candidate = start; candidate <= end; candidate++) {
+      const key = challengeKey(candidate);
+      if (key > today) break;
+      const explicit = getPlayerEntry(uid, key)?.rest === true;
+      if (explicit || (key < today && computeRawPlayerPoints(uid, key) === 0) || candidate === end) {
+        restDay = candidate;
+        automatic = !explicit;
+        break;
+      }
+    }
+  }
+  return { start, end, eligible, restDay, automatic };
+}
+
+function isRestDay(uid, dateKey) {
+  if (!uid || !isChallengeDateKey(dateKey)) return false;
+  const day = Number(dateKey.slice(-2));
+  return getRestWeek(uid, day).restDay === day;
+}
+
+function canChooseRestToday() {
+  if (!ownedUid || !isInChallengeMonth() || pendingOwnedSaves) return false;
+  const day = getCurrentDate().getUTCDate();
+  const week = getRestWeek(ownedUid, day);
+  const canStart = getParticipationStartDay(ownedUid) === null && [1, 8, 15, 22].includes(day);
+  return (week.eligible || canStart) && week.restDay === null &&
+    computeRawPlayerPoints(ownedUid, challengeKey(day)) === 0;
+}
+
+function chooseRestToday() {
+  if (!canChooseRestToday()) return;
+  setOwnedEntry(formatDateKey(getCurrentDate()), { rest: true, selected: [], values: {} });
 }
 
 function computeTeamGoalThroughDay(lastDay) {
   if (isBeforeChallenge()) return 0;
-  const todayKey = formatDateKey(getCurrentDate());
   return participants.reduce((total, participant) => {
-    const firstDate = Object.keys(entriesByUid[participant.uid] || {})
-      .filter((dateKey) => isChallengeDateKey(dateKey) && dateKey <= todayKey)
-      .sort()
-      .find((dateKey) => computePlayerTotalsForDate(participant.uid, dateKey) > 0);
-    if (!firstDate) return total;
-    const firstDay = Number(firstDate.slice(-2));
-    return total + Math.max(0, Math.min(lastDay, DAYS_IN_MONTH) - firstDay + 1) * DAILY_PERSON_GOAL;
+    const first = getParticipationStartDay(participant.uid);
+    if (first === null) return total;
+    const last = Math.min(lastDay, DAYS_IN_MONTH);
+    let scoringDays = Math.max(0, last - first + 1);
+    for (const start of [1, 8, 15, 22]) {
+      const week = getRestWeek(participant.uid, start);
+      if (week.eligible && (week.restDay ?? week.end) <= last) scoringDays--;
+    }
+    return total + scoringDays * DAILY_PERSON_GOAL;
   }, 0);
 }
 
@@ -1107,8 +1229,14 @@ function isBeforeChallenge() {
   return parts.year < CHALLENGE_YEAR || (parts.year === CHALLENGE_YEAR && parts.month < challengeMonth);
 }
 
+function isInChallengeMonth() {
+  const parts = getChallengeDateParts();
+  return parts.year === CHALLENGE_YEAR && parts.month === CHALLENGE_MONTH + 1;
+}
+
 function canLogToday() {
-  return !!ownedUid && !isBeforeChallenge();
+  return !!ownedUid && isInChallengeMonth() && !pendingOwnedSaves &&
+    !isRestDay(ownedUid, formatDateKey(getCurrentDate()));
 }
 
 function getDaysElapsed() {

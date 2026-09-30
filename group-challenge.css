@@ -882,3 +882,11 @@ body:has(.history-dialog[open]) {
   .two-column, .stats-grid { display: grid; }
   .site-header { align-items: flex-start; }
 }
+
+.rest-panel { margin: 16px 0; padding: 16px; border: 1px solid var(--muted); border-radius: 12px; }
+.rest-panel p { line-height: 1.5; }
+.rest-panel button:disabled { opacity: .65; cursor: default; }
+.week-schedule summary { cursor: pointer; font-weight: 700; }
+.week-schedule ul { list-style: none; padding: 0; margin-bottom: 0; }
+.week-schedule li { padding: 8px; border-radius: 6px; }
+.week-schedule [aria-current="date"] { background: #e3eee7; color: #174b36; font-weight: 700; }

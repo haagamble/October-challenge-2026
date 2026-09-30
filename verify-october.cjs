@@ -16,22 +16,24 @@ vm.runInContext(`
   if (formatDateKey(getCurrentDate()) !== '2026-10-31') throw Error('End clamp');
   participants = [{uid:'a'},{uid:'b'},{uid:'empty'}];
   entriesByUid = {a:{'2026-10-01':{selected:['walking'],values:{walking:0}},'2026-10-09':{selected:['walking'],values:{walking:5}}}, b:{'2026-10-11':{selected:['walking'],values:{walking:5}}}};
-  if(computeTeamGoalThroughDay(31)!==11000) throw Error('First-positive goal');
+  if(computeTeamGoalThroughDay(31)!==10000) throw Error('First-positive goal');
   if(computeTeamGoalThroughDay(10)!==500) throw Error('Pace');
   entriesByUid.a['2026-10-09'].values.walking=0;
-  if(computeTeamGoalThroughDay(31)!==5250) throw Error('Correction');
+  if(computeTeamGoalThroughDay(31)!==4750) throw Error('Correction');
   getChallengeDateParts = () => ({year:2026,month:9,day:30});
   if(computeTeamGoalThroughDay(31)!==0 || formatDateKey(getCurrentDate())!=='2026-10-01') throw Error('Before start');
 `,context);
 const rules=JSON.parse(fs.readFileSync(path.join(root,'database.rules.json'))).rules;
-const september=JSON.parse(fs.readFileSync(path.join(root,'../group-challenge-2026/database.rules.json'))).rules;
-for(const key of Object.keys(september)) assert.deepEqual(rules[key],september[key]);
+assert.deepEqual(Object.keys(rules).sort(), ['.read','.write','groupChallengeOctober2026','settingsOctober2026'].sort());
+assert.equal(rules['.read'], false);
+assert.equal(rules['.write'], false);
 assert.match(rules.groupChallengeOctober2026.$uid['.write'],/settingsOctober2026\/joinOpen/);
-assert.equal(rules.groupChallengeOctober2026.$uid.entries.$date['.validate'], '$date.matches(/^2026-10-(0[1-9]|[12][0-9]|3[01])$/)');
+assert.ok(rules.groupChallengeOctober2026.$uid.entries.$date['.validate'].startsWith('$date.matches(/^2026-10-(0[1-9]|[12][0-9]|3[01])$/)'));
+assert.ok(rules.groupChallengeOctober2026.$uid.entries.$date.rest);
 const handlers={}; const deleted=[]; let pending;
 vm.runInNewContext(fs.readFileSync(path.join(root,'service-worker.js'),'utf8'),{
  self:{addEventListener:(name,fn)=>handlers[name]=fn,clients:{claim:()=>{}},registration:{scope:'https://example.test/Oct-group-challenge-2026/'}},
- caches:{keys:async()=>['group-challenge-v48','plank-v1','october-2026-group-challenge-v0','october-2026-group-challenge-v1'],delete:async key=>deleted.push(key)},URL
+ caches:{keys:async()=>['group-challenge-v48','plank-v1','october-2026-group-challenge-v0','october-2026-group-challenge-v3'],delete:async key=>deleted.push(key)},URL
 });
 handlers.activate({waitUntil:p=>pending=p});
 pending.then(()=>{
@@ -39,5 +41,5 @@ pending.then(()=>{
  for(const url of ['https://example.test/group-challenge-2026/index.html','https://database.test/groupChallenge.json']) {
   handlers.fetch({request:{method:'GET',url},respondWith:()=>assert.fail('Intercepted unrelated request')});
  }
- console.log('PASS: October dates, 31-day schedule, goal/pace/corrections, preserved September rules, and cache isolation.');
+ console.log('PASS: October dates, 31-day schedule, goal/pace/corrections, October-only rules, and cache isolation.');
 }).catch(error=>{console.error(error);process.exitCode=1;});

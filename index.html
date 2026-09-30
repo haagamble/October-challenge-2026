@@ -8,10 +8,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Oct 2026 Fit">
   <title>October 2026 Group Challenge</title>
-  <link rel="manifest" href="manifest.webmanifest?v=oct2026-1">
+  <link rel="manifest" href="manifest.webmanifest?v=oct2026-3">
   <link rel="icon" href="icons/icon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="group-challenge.css?v=oct2026-1">
+  <link rel="stylesheet" href="group-challenge.css?v=oct2026-3">
 </head>
 <body>
   <div class="app-shell">
@@ -111,6 +111,15 @@
 
         <div class="card-note" id="dailyHint">Choose 3 activities. Aim for 250 points today. Max 400. Challenge days follow Pacific time.</div>
 
+        <div class="rest-panel">
+          <button id="restButton" class="btn primary" type="button" aria-describedby="restStatus" disabled>Rest today</button>
+          <p id="restStatus" role="status"></p>
+          <details class="week-schedule">
+            <summary id="weekScheduleTitle">This week's double-points activities</summary>
+            <p>Preview only. You can select Rest for today, never a future day.</p>
+            <ul id="weekSchedule"></ul>
+          </details>
+        </div>
         <div id="activityGrid" class="activity-grid"></div>
       </section>
 
@@ -144,7 +153,7 @@
       <button id="closeHelpButton" class="btn primary" type="button" autofocus>Close help &#10005;</button>
     </div>
     <div id="helpContent" class="instructions-content" tabindex="0" role="region" aria-label="Challenge instructions and frequently asked questions">
-          <p>Choose 3 activities each day and enter what you actually did: reps, minutes, seconds, stairs, or self-assessed points for Other.</p>
+          <p>Choose 3 activities on scoring days and enter what you actually did: reps, minutes, seconds, stairs, or self-assessed points for Other.</p>
           <p>Break activities into whatever sets work for you. Your daily total counts, even if you spread it throughout the day.</p>
           <p>Each activity counts up to 100 points. If it is today's double-points activity, it can count up to 200. The daily max is 400.</p>
           <div class="target-list" aria-label="100-point targets">
@@ -162,8 +171,14 @@
             <span>Other: a doable but challenging amount of exercise for you</span>
           </div>
           <p>Other covers swimming, football, cycling, and other unlisted activities. Award yourself up to 100 points total each day across these activities, with 100 meaning doable but challenging for you. Use a consistent standard, and only count exercise you have not logged in another category. Other counts as one of your 3 choices and does not receive double points.</p>
-          <p>Each person adds 250 points per day to the goal, from their first day with points through October 31. The goal grows as people start participating.</p>
-          <p>This includes days they skip afterward. Joining without logging points does not add to the goal. Starting October 9 adds 5,750 points (23 days); starting October 11 adds 5,250 (21 days). Team pace uses the same start dates. People can see who joined and the team totals, but not each person's daily score.</p>
+          <h3>How do rest days work?</h3>
+          <p>Each full challenge week has six scoring days and one required rest day. The weeks are October 1-7, 8-14, 15-21, and 22-28. There are no rest days for October 29-31. Everyone chooses their own day; you do not need to rest together.</p>
+          <p>Select <strong>Rest today</strong> on the day you want to rest. You cannot choose a future date, but you can preview this week's double-points activities to plan ahead. Rest earns zero points and activity logging is disabled for that day. You can still exercise, but it will not earn challenge points. A Rest selection lasts for the day. If you already logged points, clear today's activity values before choosing Rest.</p>
+          <p>If you have not used your rest day, the first completed day with zero points automatically becomes Rest, after midnight Pacific time. Today stays open for evening logging. If you score on the first six days, the seventh automatically becomes Rest. Further missed days do not become extra rest days, and allowances do not carry over. Rest counts as participation in your completed-day summary.</p>
+          <h3>When am I eligible, and how does Rest affect the goal?</h3>
+          <p>Participation starts with your first positive points, not simply joining. You receive a rest day only if you started by the opening day of that week. For example, first scoring on October 3 means no rest allowance for October 3-7; your next allowance begins October 8.</p>
+          <p>You may also start by selecting Rest on October 1, 8, 15, or 22. This uses that week's rest day and begins your participation without requiring points first. Merely joining and missing days does not start participation or assign Rest.</p>
+          <p>The goal is 250 points per scoring day from your start through October 31. Each eligible full week contributes 1,500 points, with its rest allowance built in immediately. Starting October 1 contributes 6,750 points; starting October 3 contributes 6,500. Additional missed days still count toward the goal. Daily team pace excludes assigned rest days; until you use an allowance, it is reserved for that week's final day. People can see Rest status and team totals, but not each person's daily score.</p>
           <p>Challenge days follow Pacific time. The 400 club celebrates people who reached the daily max yesterday.</p>
           <p>Push ups may be wall pushups, knee pushups, or full pushups. Sit ups may be full sit ups or crunches. Stairs can be up and/or down. One bird dog rep means a right-left pair. Dancing may be ballet, breakdancing, kitchen dancing, or any movement you are prepared to defend as rhythmic.</p>
     </div>
@@ -187,7 +202,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="firebase-config.js?v=2"></script>
-  <script src="group-challenge.js?v=oct2026-1"></script>
+  <script src="firebase-config.js?v=oct2026-3"></script>
+  <script src="group-challenge.js?v=oct2026-3"></script>
 </body>
 </html>
