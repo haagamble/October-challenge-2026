@@ -1,16 +1,18 @@
 const DB_URL = window.GROUP_CHALLENGE_FIREBASE_CONFIG?.databaseURL || '';
 const FIREBASE_API_KEY = window.GROUP_CHALLENGE_FIREBASE_CONFIG?.apiKey || '';
-const JOIN_CODE = 'group26';
-const CHALLENGE_MONTH = 8; // September is month index 8 (zero-based).
+const JOIN_CODE = 'oct26';
+const CHALLENGE_DATA_PATH = 'groupChallengeOctober2026';
+const JOIN_OPEN_PATH = 'settingsOctober2026/joinOpen';
+const CHALLENGE_MONTH = 9; // October is month index 9 (zero-based).
 const CHALLENGE_YEAR = 2026;
 const CHALLENGE_TIME_ZONE = 'America/Los_Angeles';
-const DAYS_IN_MONTH = 30;
+const DAYS_IN_MONTH = 31;
 const DAILY_PERSON_GOAL = 250;
-const TEST_STORAGE_KEY = 'group-challenge-test-data';
-const TEST_IDENTITY_STORAGE_KEY = 'group-challenge-test-player';
-const GOAL_CELEBRATION_KEY = 'group-challenge-2026-goal-celebrated';
-const AUTH_STORAGE_KEY = 'group-challenge-firebase-auth';
-const INSTALL_DISMISSED_KEY = 'group-challenge-install-dismissed';
+const TEST_STORAGE_KEY = 'october-2026-group-challenge-test-data';
+const TEST_IDENTITY_STORAGE_KEY = 'october-2026-group-challenge-test-player';
+const GOAL_CELEBRATION_KEY = 'october-2026-group-challenge-2026-goal-celebrated';
+const AUTH_STORAGE_KEY = 'october-2026-group-challenge-firebase-auth';
+const INSTALL_DISMISSED_KEY = 'october-2026-group-challenge-install-dismissed';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 const ACTIVITY_DEFS = [
@@ -30,7 +32,8 @@ const ACTIVITY_DEFS = [
 const DOUBLE_ACTIVITY_SCHEDULE = [
   'pushups', 'walking', 'situps', 'stairs', 'running', 'plank', 'dancing', 'pullups', 'squats', 'bird-dog',
   'plank', 'running', 'pushups', 'bird-dog', 'walking', 'situps', 'pullups', 'dancing', 'stairs', 'squats',
-  'dancing', 'squats', 'stairs', 'walking', 'bird-dog', 'pullups', 'plank', 'running', 'situps', 'pushups'
+  'dancing', 'squats', 'stairs', 'walking', 'bird-dog', 'pullups', 'plank', 'running', 'situps', 'pushups',
+  'walking' // October 31 continues the rotation without repeating October 30.
 ];
 
 const QUERY_PARAMS = new URLSearchParams(window.location.search);
@@ -248,8 +251,8 @@ async function fetchAll() {
 
   try {
     const [challengeResponse, joinResponse] = await Promise.all([
-      firebaseRequest('groupChallenge'),
-      firebaseRequest('settings/joinOpen')
+      firebaseRequest(CHALLENGE_DATA_PATH),
+      firebaseRequest(JOIN_OPEN_PATH)
     ]);
     if (!challengeResponse.ok) throw new Error(`Firebase returned ${challengeResponse.status}`);
 
@@ -308,7 +311,7 @@ async function saveOwnedRecord() {
   const participant = participants.find((item) => item.uid === ownedUid);
   if (!participant) return;
 
-  const response = await firebaseRequest(`groupChallenge/${ownedUid}`, {
+  const response = await firebaseRequest(`${CHALLENGE_DATA_PATH}/${ownedUid}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1133,7 +1136,7 @@ function formatDateKey(date) {
 }
 
 function isChallengeDateKey(dateKey) {
-  return /^2026-09-(0[1-9]|[12][0-9]|30)$/.test(dateKey);
+  return /^2026-10-(0[1-9]|[12][0-9]|3[01])$/.test(dateKey);
 }
 
 function getDoubleActivityId(date) {
@@ -1217,7 +1220,9 @@ function registerServiceWorker() {
   const isLocalHost = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
   if ('serviceWorker' in navigator && (TEST_MODE || isLocalHost)) {
     navigator.serviceWorker.getRegistrations()
-      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+      .then((registrations) => Promise.all(registrations
+        .filter((registration) => registration.scope === new URL('./', window.location.href).href)
+        .map((registration) => registration.unregister())))
       .catch(() => {});
     return;
   }

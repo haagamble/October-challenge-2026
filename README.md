@@ -1,6 +1,6 @@
-# Group Challenge 2026
+# October 2026 Group Challenge
 
-A reusable small-group fitness challenge app for a 30-day month. Participants
+A reusable small-group fitness challenge app for a 31-day October 2026 challenge. Participants
 choose 3 activities each day, log progress toward 100 points per activity, and
 work together toward a shared team goal.
 
@@ -48,7 +48,7 @@ Inclusive movement notes:
 The group goal is:
 
 ```text
-sum of (days from each person's first positive-point day through September 30 x 250)
+sum of (days from each person's first positive-point day through October 31 x 250)
 ```
 
 People who have not scored any points add nothing to the goal. Once someone
@@ -94,12 +94,13 @@ read or write Firebase data. The test group starts empty.
 4. Copy your Realtime Database URL into `firebase-config.js`.
 5. Enable Authentication -> Sign-in method -> Anonymous.
 6. Create a Realtime Database.
-7. Publish the contents of `database.rules.json` as your Realtime Database
-   rules.
-8. In Realtime Database -> Data, create `/settings/joinOpen` with Boolean value
+7. Compare the live database rules with `database.rules.json` before publishing.
+   Merge the October branches into current live rules, preserving all existing
+   branches. This file retains the copied September rules, but live rules may differ.
+8. In Realtime Database -> Data, create `/settingsOctober2026/joinOpen` with Boolean value
    `true`.
 
-Once everyone has joined, set `/settings/joinOpen` to `false`. Existing
+Once everyone has joined, set `/settingsOctober2026/joinOpen` to `false`. Existing
 participants can keep updating their own entries, but new participant records
 will be rejected.
 
@@ -109,14 +110,14 @@ The rules can also be deployed with Firebase CLI:
 firebase deploy --only database
 ```
 
-Live participant data is stored under `/groupChallenge/{firebaseUserId}`.
+Live participant data is stored under `/groupChallengeOctober2026/{firebaseUserId}`.
 
 ## Invite Participants
 
 After deployment, share the site URL with the join parameter:
 
 ```text
-https://YOUR-SITE-URL/?join=group26
+https://YOUR-SITE-URL/?join=oct26
 ```
 
 Each browser/device gets an anonymous Firebase identity. A participant can edit
@@ -141,7 +142,10 @@ server-side aggregation layer such as Cloud Functions.
 
 ## Deploy With GitHub Pages
 
-1. Push this folder to its own GitHub repository.
+1. Use the separate repository `haagamble/Oct-group-challenge-2026`. This
+   folder's `origin` points to that repository for both fetch and push. Create
+   the empty GitHub repository before the first push; never point this copy
+   at `haagamble/group-challenge-2026`.
 2. Enable GitHub Pages for the repository's main branch and root folder.
 3. Open the published URL and confirm Firebase loads correctly.
 4. Visit the invite URL and join from a test device.
@@ -151,3 +155,32 @@ server-side aggregation layer such as Cloud Functions.
 All files in this folder, including `firebase-config.js`,
 `manifest.webmanifest`, `service-worker.js`, `database.rules.json`, and
 `icons/`, should be included in the repository.
+
+## October isolation and launch
+
+- The September sibling folder, URL, and records remain the archive.
+- October reads and writes only /groupChallengeOctober2026 and reads only
+  /settingsOctober2026/joinOpen. The shared Firebase project configuration stays the same.
+- Joining defaults to closed when October's setting is absent. Create only
+  /settingsOctober2026/joinOpen = true when ready; do not change /settings/joinOpen.
+- The invite code is oct26. It is a UI invitation check, not a database secret;
+  the existing standalone-app invitation behavior is retained. Database rules
+  enforce October's join-open setting and owner-only writes.
+- October validates October 1?31, 2026. Day 31 doubles walking; the first 30
+  schedule entries are preserved. Other is never doubled. Goals remain 250
+  points per day from each participant's first positive-point day, including
+  skipped days afterward. Starting October 9 adds 5,750; October 11 adds 5,250.
+- October has independent auth, test, install-dismissal, and celebration keys.
+- October's worker cleans up only its own cache namespace and uses only its
+  own shell cache. Test mode unregisters only the worker at October's scope.
+- September's unchanged worker deletes other caches on its origin at activation.
+  For guaranteed offline-cache isolation, host October on a separate origin
+  (a different hostname). A sibling path or another GitHub Pages repository on
+  the same hostname does not provide that isolation.
+- The copied group-fitness-2026-default-rtdb-export.json is a September backup,
+  not October seed data. Do not import it into October or overwrite the live root.
+
+These are local file changes only. Firebase rules/settings and website deployment
+are separate launch steps; no live data has been changed.
+
+Run the local regression checks with `node verify-october.cjs` from this folder.

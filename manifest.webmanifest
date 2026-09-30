@@ -1,7 +1,7 @@
 {
-  "name": "Group Fitness Challenge",
-  "short_name": "Group Fit",
-  "description": "A shared month-long fitness challenge with team goals and daily activity tracking.",
+  "name": "October 2026 Group Fitness Challenge",
+  "short_name": "Oct 2026 Fit",
+  "description": "October 1?31, 2026 group fitness challenge with team goals and daily activity tracking.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -20,5 +20,6 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "id": "./?app=october-2026"
 }

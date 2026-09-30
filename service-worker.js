@@ -1,4 +1,5 @@
-const CACHE_NAME = 'group-challenge-v48';
+const CACHE_PREFIX = 'october-2026-group-challenge-';
+const CACHE_NAME = `${CACHE_PREFIX}v1`;
 const APP_SHELL = [
   './',
   './index.html',
@@ -23,7 +24,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
       keys
-        .filter((key) => key !== CACHE_NAME)
+        .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
         .map((key) => caches.delete(key))
     )).then(() => self.clients.claim())
   );
@@ -32,17 +33,24 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  const shellUrls = APP_SHELL.map((path) => new URL(path, self.registration.scope).href);
+  // Only cache this app shell, never Firebase responses or sibling apps.
+  if (!shellUrls.includes(`${url.origin}${url.pathname}`)) return;
 
   event.respondWith(
     // Revalidate page loads so reopening does not reuse stale HTTP-cached HTML.
     fetch(request, request.mode === 'navigate' ? { cache: 'no-cache' } : {}).then((response) => {
       const copy = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+      if (response.ok) {
+        event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
+      }
       return response;
     }).catch(async () => {
-      const cached = await caches.match(request);
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(request, { ignoreSearch: true });
       if (cached) return cached;
-      if (request.mode === 'navigate') return caches.match('./index.html');
+      if (request.mode === 'navigate') return cache.match(new URL('./index.html', self.registration.scope).href);
       return new Response('Offline', { status: 503, statusText: 'Offline' });
     })
   );

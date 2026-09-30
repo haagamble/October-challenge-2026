@@ -37,6 +37,42 @@
           ".validate": false
         }
       }
+    },
+    "settingsOctober2026": {
+      ".read": true,
+      ".write": false
+    },
+    "groupChallengeOctober2026": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && (data.exists() || root.child('settingsOctober2026/joinOpen').val() === true)",
+        ".validate": "newData.hasChild('name')",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30"
+        },
+        "entries": {
+          "$date": {
+            ".validate": "$date.matches(/^2026-10-(0[1-9]|[12][0-9]|3[01])$/)",
+            "selected": {
+              ".validate": "newData.hasChildren()",
+              "$index": {
+                ".validate": "$index.matches(/^[0-2]$/) && newData.isString() && newData.val().matches(/^(pushups|pullups|squats|situps|plank|walking|running|dancing|stairs|bird-dog|other)$/)"
+              }
+            },
+            "values": {
+              "$activity": {
+                ".validate": "$activity.matches(/^(pushups|pullups|squats|situps|plank|walking|running|dancing|stairs|bird-dog|other)$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999 && ($activity !== 'other' || newData.val() <= 100)"
+              }
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
     }
   }
 }
