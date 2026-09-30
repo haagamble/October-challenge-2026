@@ -18,21 +18,21 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const ACTIVITY_DEFS = [
   { id: 'pushups', name: 'Push ups', unit: 'reps', pointsPerAmount: 2, amountPerPointUnit: 1, pointCapAmount: 50, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter reps - 2 pts each', detail: 'Wall pushups, knee pushups, and full pushups all count.' },
   { id: 'pullups', name: 'Pull ups', unit: 'reps', pointsPerAmount: 10, amountPerPointUnit: 1, pointCapAmount: 10, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter reps - 10 pts each' },
-  { id: 'squats', name: 'Squats', unit: 'reps', pointsPerAmount: 1, amountPerPointUnit: 1, pointCapAmount: 100, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter reps - 1 pt each' },
+  { id: 'squats', name: 'Squats/Lunges', unit: 'reps', pointsPerAmount: 1, amountPerPointUnit: 1, pointCapAmount: 100, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter reps - 1 pt each' },
   { id: 'situps', name: 'Sit ups', unit: 'reps', pointsPerAmount: 1, amountPerPointUnit: 1, pointCapAmount: 100, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter reps - 1 pt each', detail: 'Full sit ups and crunches both count.' },
   { id: 'plank', name: 'Plank', unit: 'seconds', pointsPerAmount: 10, amountPerPointUnit: 30, pointCapAmount: 300, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter seconds - 10 pts per 30 sec' },
-  { id: 'walking', name: 'Walking', unit: 'minutes', pointsPerAmount: 10, amountPerPointUnit: 5, pointCapAmount: 50, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter minutes - 10 pts per 5 min' },
-  { id: 'running', name: 'Running', unit: 'minutes', pointsPerAmount: 10, amountPerPointUnit: 5, pointCapAmount: 50, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter minutes - 10 pts per 5 min' },
-  { id: 'dancing', name: 'Dancing', unit: 'minutes', pointsPerAmount: 20, amountPerPointUnit: 5, pointCapAmount: 25, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter minutes - 20 pts per 5 min' },
+  { id: 'walking', name: 'Running/Walking', unit: 'minutes', pointsPerAmount: 2, amountPerPointUnit: 1, pointCapAmount: 50, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter minutes - 2 pts per minute' },
+  { id: 'strength', name: 'Strength', unit: 'reps', pointsPerAmount: 1, amountPerPointUnit: 1, pointCapAmount: 100, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter reps - 1 pt each', detail: 'Weight-training exercises such as dumbbell curls, presses, rows, or kettlebell swings. Count each rep once, in one category only.' },
+  { id: 'dancing', name: 'Dancing/Aerobics', unit: 'minutes', pointsPerAmount: 4, amountPerPointUnit: 1, pointCapAmount: 25, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter minutes - 4 pts per minute' },
   { id: 'stairs', name: 'Stairs', unit: 'stairs', pointsPerAmount: 1, amountPerPointUnit: 5, pointCapAmount: 500, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter stairs - 1 pt per 5 stairs' },
   { id: 'bird-dog', name: 'Bird dog', unit: 'reps', pointsPerAmount: 2, amountPerPointUnit: 1, pointCapAmount: 50, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter reps - 2 pts each', detail: 'One rep means a right-left pair.' },
   { id: 'other', name: 'Other', unit: 'points', pointsPerAmount: 1, amountPerPointUnit: 1, pointCapAmount: 100, maxPoints: 100, maxAmount: 100, capLabel: '100 pt daily cap', notes: 'Enter 0-100 points. See FAQ.' }
 ];
 
 const DOUBLE_ACTIVITY_SCHEDULE = [
-  'pushups', 'walking', 'situps', 'stairs', 'running', 'plank', 'dancing', 'pullups', 'squats', 'bird-dog',
-  'plank', 'running', 'pushups', 'bird-dog', 'walking', 'situps', 'pullups', 'dancing', 'stairs', 'squats',
-  'dancing', 'squats', 'stairs', 'walking', 'bird-dog', 'pullups', 'plank', 'running', 'situps', 'pushups',
+  'strength', 'walking', 'situps', 'stairs', 'pushups', 'plank', 'dancing', 'pullups', 'squats', 'bird-dog',
+  'plank', 'strength', 'pushups', 'walking', 'bird-dog', 'situps', 'pullups', 'dancing', 'stairs', 'squats',
+  'walking', 'squats', 'stairs', 'dancing', 'bird-dog', 'pullups', 'plank', 'strength', 'situps', 'pushups',
   'walking' // October 31 continues the rotation without repeating October 30.
 ];
 
@@ -243,7 +243,7 @@ async function fetchAll() {
   if (TEST_MODE) {
     const data = JSON.parse(localStorage.getItem(TEST_STORAGE_KEY) || 'null');
     participants = data?.participants || [];
-    entriesByUid = data?.entriesByUid || {};
+    entriesByUid = Object.fromEntries(Object.entries(data?.entriesByUid || {}).map(([uid, entries]) => [uid, sanitizeEntries(entries)]));
     joinOpen = true;
     loadState = 'ready';
     return;
@@ -285,13 +285,17 @@ function sanitizeEntries(entries) {
 
   for (const [dateKey, entry] of Object.entries(entries)) {
     if (!isChallengeDateKey(dateKey) || !entry || typeof entry !== 'object') continue;
-    const selected = Array.isArray(entry.selected)
-      ? entry.selected.filter((id) => ACTIVITY_DEFS.some((activity) => activity.id === id)).slice(0, 3)
-      : [];
+    // Preserve old running minutes by merging them into the combined category.
+    const originalSelected = Array.isArray(entry.selected) ? [...new Set(entry.selected)] : [];
+    const selected = [...new Set(originalSelected.map(id => id === 'running' ? 'walking' : id))]
+      .filter(id => ACTIVITY_DEFS.some(activity => activity.id === id)).slice(0, 3);
     const values = {};
     selected.forEach((activityId) => {
       const activity = getActivity(activityId);
-      const rawValue = Number(entry.values?.[activityId] || 0);
+      const rawValue = activityId === 'walking'
+        ? originalSelected.filter(id => id === 'walking' || id === 'running')
+          .reduce((total, id) => total + normalizeActivityAmount(activity, entry.values?.[id]), 0)
+        : Number(entry.values?.[activityId] || 0);
       values[activityId] = normalizeActivityAmount(activity, rawValue);
     });
     clean[dateKey] = entry.rest === true ? { rest: true, selected: [], values: {} } : { selected, values };

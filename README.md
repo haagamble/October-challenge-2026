@@ -20,12 +20,12 @@ work together toward a shared team goal.
 
 - Push ups: enter actual reps, 2 points each
 - Pull ups: enter actual reps, 10 points each
-- Squats: enter actual reps, 1 point each
+- Squats/Lunges: enter actual reps, 1 point each
 - Sit ups: enter actual reps, 1 point each
 - Plank: enter actual seconds, 10 points per 30 seconds
-- Walking: enter actual minutes, 10 points per 5 minutes
-- Running: enter actual minutes, 10 points per 5 minutes
-- Dancing: enter actual minutes, 20 points per 5 minutes
+- Running/Walking: enter actual minutes, 2 points per minute
+- Strength: enter weight-training repetitions, 1 point each
+- Dancing/Aerobics: enter combined dancing or aerobics minutes (including video workouts), 4 points per minute
 - Stairs: enter actual stairs, 1 point per 5 stairs
 - Bird dog: enter actual reps, 2 points each
 - Other: enter 0-100 self-assessed points total per day for all unlisted activities.
@@ -169,8 +169,7 @@ All files in this folder, including `firebase-config.js`,
 - The invite code is oct26. It is a UI invitation check, not a database secret;
   the existing standalone-app invitation behavior is retained. Database rules
   enforce October's join-open setting and owner-only writes.
-- October validates October 1-31, 2026. Day 31 doubles walking; the first 30
-  schedule entries are preserved. Other is never doubled. Goals remain 250
+- October validates October 1-31, 2026. Day 31 doubles walking; Strength uses October 5, 12, and 28. Other is never doubled. Goals remain 250
   points per scoring day, with one required rest per eligible full week.
   Starting October 9 adds 5,250; October 11 adds 4,750.
 - October has independent auth, test, install-dismissal, and celebration keys.
@@ -197,3 +196,11 @@ anti-cheating rules. Automatic rest requires no background job or database write
 Manual Rest can only be selected today and lasts for that day. The weekly
 double-points schedule is read-only. Run `node verify-rest.cjs` as well as
 `node verify-october.cjs` before release.
+
+Combined activities: existing running and walking selections are merged on load,
+with their minutes summed under walking and a shared 100-point base cap. Old
+running values remain permitted by the rules for compatibility. Strength uses
+the former running double days (October 5, 12, 28). Existing October scores may
+therefore recalculate under the new categories and schedule. Publish the updated
+October database rules before using Strength. No live records are migrated by
+this file update; a participant saves their normalized record on their next edit.

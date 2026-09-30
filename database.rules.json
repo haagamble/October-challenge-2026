@@ -20,12 +20,12 @@
             "selected": {
               ".validate": "newData.hasChildren()",
               "$index": {
-                ".validate": "$index.matches(/^[0-2]$/) && newData.isString() && newData.val().matches(/^(pushups|pullups|squats|situps|plank|walking|running|dancing|stairs|bird-dog|other)$/)"
+                ".validate": "$index.matches(/^[0-2]$/) && newData.isString() && newData.val().matches(/^(pushups|pullups|squats|situps|plank|walking|running|strength|dancing|stairs|bird-dog|other)$/)"
               }
             },
             "values": {
               "$activity": {
-                ".validate": "$activity.matches(/^(pushups|pullups|squats|situps|plank|walking|running|dancing|stairs|bird-dog|other)$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999 && ($activity !== 'other' || newData.val() <= 100)"
+                ".validate": "$activity.matches(/^(pushups|pullups|squats|situps|plank|walking|running|strength|dancing|stairs|bird-dog|other)$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999 && ($activity !== 'other' || newData.val() <= 100)"
               }
             },
             "$other": {
