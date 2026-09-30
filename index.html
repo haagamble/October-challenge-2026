@@ -8,10 +8,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Oct 2026 Fit">
   <title>October 2026 Group Challenge</title>
-  <link rel="manifest" href="manifest.webmanifest?v=oct2026-8">
+  <link rel="manifest" href="manifest.webmanifest?v=oct2026-9">
   <link rel="icon" href="icons/icon-32.png?v=purple1" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=purple1">
-  <link rel="stylesheet" href="group-challenge.css?v=oct2026-8">
+  <link rel="stylesheet" href="group-challenge.css?v=oct2026-9">
 </head>
 <body>
   <div class="app-shell">
@@ -44,6 +44,16 @@
     <div id="identityNote" class="identity-note hidden"></div>
 
     <main id="challengeContent" class="hidden">
+      <p id="cheerleaderNotice" class="card-note hidden" role="status">Cheerleader updates are unavailable. Bonus totals may be out of date. Please refresh when connected.</p>
+      <section id="cheerleaderCard" class="card panel hidden" aria-labelledby="cheerleaderTitle">
+        <h2 id="cheerleaderTitle">You are today's cheerleader!</h2>
+        <p>Encourage the WhatsApp group, share a team update, and remind everyone to log points or take their rest day. Post in WhatsApp yourself; this app does not send messages.</p>
+        <p>This role is optional, including on rest days. Your bonus helps the team without increasing our goal.</p>
+        <p id="cheerleaderStatus" role="status"></p>
+        <button id="cheerleaderAccept" class="btn primary" type="button">Accept role</button>
+        <button id="cheerleaderPass" class="btn" type="button">Pass today</button>
+        <label id="cheerleaderClaimLabel" class="cheerleader-claim hidden"><input id="cheerleaderClaim" type="checkbox"> I encouraged the group today - claim 100 bonus points</label>
+      </section>
       <section class="stats-grid">
         <article class="stat-card accent">
           <div class="stat-label">Team today</div>
@@ -171,6 +181,10 @@
             <span>Other: a doable but challenging amount of exercise for you</span>
           </div>
           <p>Other covers swimming, football, cycling, and other unlisted activities. Award yourself up to 100 points total each day across these activities, with 100 meaning doable but challenging for you. Use a consistent standard, and only count exercise you have not logged in another category. Other counts as one of your 3 choices and does not receive double points.</p>
+          <h3>What does the daily cheerleader do?</h3>
+          <p>One participant per Pacific-time day is invited to encourage our WhatsApp group, share updates, and remind people to log activities or take Rest. October 1 is assigned manually. The remaining fixed rotation includes everyone who joined by the end of October 1, Pacific time, balancing turns including October 1. Opening the app first does not determine the assignment.</p>
+          <p>If you are assigned, accept the role or pass. Passing does not reassign it. After encouraging the group, check the completion box to claim 100 bonus points; you may uncheck an accidental claim that same day. This is self-reported and optional. You can reconsider a pass during the day. Only the assigned participant can claim, once per date; refreshing cannot add extra bonuses. The day closes at midnight Pacific time.</p>
+          <p>The bonus adds to personal and team totals, but does not increase the goal, use an activity choice, or receive double points. It is available on Rest days. Activity points alone determine participation starts, rest eligibility, daily activity averages, and the 400 Club. You can earn 400 activity points plus a 100-point bonus. Daily history labels bonuses separately.</p>
           <h3>Full or modified pull ups?</h3>
           <p>Select Pull ups, then choose Full or Modified in its pull-up type menu. Full pull ups earn 10 points per rep (100 points at 10 reps). Modified pull ups earn 2 points per rep (100 points at 50 reps). Both count as one activity choice, with a shared 100-point base cap and up to 200 points on pull-up double-points days.</p>
           <p>Your last choice is remembered on this browser for future days. Each day saves its own type, so changing today's choice recalculates today's points without changing earlier days. Older entries without a type count as Full.</p>
@@ -211,7 +225,8 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="firebase-config.js?v=oct2026-8"></script>
-  <script src="group-challenge.js?v=oct2026-8"></script>
+  <script src="firebase-config.js?v=oct2026-9"></script>
+  <script src="cheerleader.js?v=oct2026-9"></script>
+  <script src="group-challenge.js?v=oct2026-9"></script>
 </body>
 </html>

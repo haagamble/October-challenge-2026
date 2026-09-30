@@ -43,6 +43,26 @@
           ".validate": false
         }
       }
+    },
+    "cheerleaderScheduleOctober2026": {
+      ".read": "auth != null",
+      ".write": false
+    },
+    "cheerleaderClaimsOctober2026": {
+      ".read": "auth != null",
+      "$date": {
+        ".write": "auth != null && root.child('groupChallengeOctober2026').child(auth.uid).exists() && root.child('cheerleaderScheduleOctober2026').child($date).child('uid').val() === auth.uid && root.child('cheerleaderScheduleOctober2026').child($date).child('startAt').isNumber() && root.child('cheerleaderScheduleOctober2026').child($date).child('endAt').isNumber() && now >= root.child('cheerleaderScheduleOctober2026').child($date).child('startAt').val() && now < root.child('cheerleaderScheduleOctober2026').child($date).child('endAt').val() && newData.exists()",
+        ".validate": "$date.matches(/^2026-10-(0[1-9]|[12][0-9]|3[01])$/) && newData.hasChildren(['uid','status']) && (newData.child('status').val() !== 'claimed' || (data.child('uid').val() === auth.uid && (data.child('status').val() === 'accepted' || data.child('status').val() === 'claimed'))) && (newData.child('status').val() !== 'passed' || data.child('status').val() !== 'claimed')",
+        "uid": {
+          ".validate": "newData.isString() && newData.val() === auth.uid"
+        },
+        "status": {
+          ".validate": "newData.isString() && newData.val().matches(/^(accepted|passed|claimed)$/)"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
     }
   }
 }

@@ -2,7 +2,7 @@
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const source = fs.readFileSync(path.join(__dirname, 'group-challenge.js'), 'utf8').replace(/init\(\);\s*$/, '');
+const source = fs.readFileSync(path.join(__dirname, 'group-challenge.js'), 'utf8').replace(/init\(\);\s*$/, '') + '\n' + fs.readFileSync(path.join(__dirname, 'cheerleader.js'), 'utf8');
 const nodes = new Map();
 function element() {
   return { children: [], classList: {add(){},remove(){},toggle(){}}, style: {},

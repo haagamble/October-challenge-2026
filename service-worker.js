@@ -1,10 +1,11 @@
 const CACHE_PREFIX = 'october-2026-group-challenge-';
-const CACHE_NAME = `${CACHE_PREFIX}v8`;
+const CACHE_NAME = `${CACHE_PREFIX}v9`;
 const APP_SHELL = [
   './',
   './index.html',
   './group-challenge.css',
   './group-challenge.js',
+  './cheerleader.js',
   './firebase-config.js',
   './manifest.webmanifest',
   './icons/icon-192.png',

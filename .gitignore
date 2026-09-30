@@ -3,3 +3,5 @@ Thumbs.db
 .env
 .firebase/
 firebase-debug.log
+
+.private-cheerleader/

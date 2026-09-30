@@ -893,3 +893,6 @@ body:has(.history-dialog[open]) {
 
 .pullup-type { display: grid; gap: 6px; margin: 10px 0; font-weight: 600; }
 .pullup-type select { width: 100%; min-width: 0; padding: 10px; border: 1px solid #aaa; border-radius: 8px; font: inherit; background: #fff; color: #222; }
+
+.cheerleader-claim { display: flex; align-items: flex-start; gap: 10px; padding: 16px 0; line-height: 1.5; }
+.cheerleader-claim input { margin-top: 5px; width: 20px; height: 20px; flex-shrink: 0; }

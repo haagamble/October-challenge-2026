@@ -3,7 +3,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const root = __dirname;
-const source = fs.readFileSync(path.join(root, 'group-challenge.js'), 'utf8').replace(/init\(\);\s*$/, '');
+const source = fs.readFileSync(path.join(root, 'group-challenge.js'), 'utf8').replace(/init\(\);\s*$/, '') + '\n' + fs.readFileSync(path.join(__dirname, 'cheerleader.js'), 'utf8');
 const context = vm.createContext({window:{location:{search:'?test=1', href:'https://example.test/Oct-group-challenge-2026/', hostname:'example.test'}},localStorage:{getItem:()=>null}, URLSearchParams, URL, Intl, Date});
 vm.runInContext(source, context);
 vm.runInContext(`
@@ -50,7 +50,7 @@ vm.runInContext(`
   if (getActivity('squats').name!=='Squats/Lunges') throw Error('Squat label');
 `,context);
 const rules=JSON.parse(fs.readFileSync(path.join(root,'database.rules.json'))).rules;
-assert.deepEqual(Object.keys(rules).sort(), ['.read','.write','groupChallengeOctober2026','settingsOctober2026'].sort());
+assert.deepEqual(Object.keys(rules).sort(), ['.read','.write','groupChallengeOctober2026','settingsOctober2026','cheerleaderScheduleOctober2026','cheerleaderClaimsOctober2026'].sort());
 assert.equal(rules['.read'], false);
 assert.equal(rules['.write'], false);
 assert.match(rules.groupChallengeOctober2026.$uid['.write'],/settingsOctober2026\/joinOpen/);
@@ -61,7 +61,7 @@ assert.ok(rules.groupChallengeOctober2026.$uid.entries.$date.values.$activity['.
 const handlers={}; const deleted=[]; let pending;
 vm.runInNewContext(fs.readFileSync(path.join(root,'service-worker.js'),'utf8'),{
  self:{addEventListener:(name,fn)=>handlers[name]=fn,clients:{claim:()=>{}},registration:{scope:'https://example.test/Oct-group-challenge-2026/'}},
- caches:{keys:async()=>['group-challenge-v48','plank-v1','october-2026-group-challenge-v0','october-2026-group-challenge-v8'],delete:async key=>deleted.push(key)},URL
+ caches:{keys:async()=>['group-challenge-v48','plank-v1','october-2026-group-challenge-v0','october-2026-group-challenge-v9'],delete:async key=>deleted.push(key)},URL
 });
 handlers.activate({waitUntil:p=>pending=p});
 pending.then(()=>{

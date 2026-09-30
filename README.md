@@ -209,3 +209,48 @@ Pull-up type is saved per entry as pullupType (full or modified). Missing types
 retain Full scoring. The last successful selection is remembered locally per
 participant, project, and test/live mode. Publish the updated October rules
 before deploying this version so type selections can be saved.
+
+## Cheerleader setup (Spark plan, October project only)
+
+Publish the updated database.rules.json before deploying this app version.
+The code reads cheerleaderScheduleOctober2026 and cheerleaderClaimsOctober2026.
+Schedule entries contain uid, startAt, and endAt (epoch milliseconds for the
+Pacific day). Only an organizer using the Firebase Console can edit assignments;
+client rules deny all schedule writes. Claims require the assigned authenticated
+participant, a participant record, the server-time day window, and a valid status.
+Claims store accepted, passed, or claimed, never an editable number of points.
+Only claimed entries earn 100; repeated claims cannot multiply the award.
+
+1. Manually choose October 1's participant from groupChallengeOctober2026 and
+   copy their ID. Create a local .private-cheerleader folder (ignored by Git).
+2. Generate October 1 only (run from the October app folder):
+   node make-cheerleader-schedule.cjs --first-day OCTOBER_1_UID .private-cheerleader/day-one.json
+3. Create/select cheerleaderScheduleOctober2026 in October's Firebase Data tab.
+   Import day-one.json at THAT NODE ONLY, never the database root. Importing
+   replaces the selected node. Check the console path before importing.
+4. At the end of October 1 Pacific time, export ONLY groupChallengeOctober2026
+   into .private-cheerleader/roster.json. This must be the frozen cutoff roster,
+   not a later export containing later joiners. The app has no reliable joinedAt
+   field for reconstructing this cutoff retrospectively; review the roster if late.
+5. Generate the full schedule:
+   node make-cheerleader-schedule.cjs .private-cheerleader/roster.json OCTOBER_1_UID .private-cheerleader/schedule.json
+6. Review, then import schedule.json at cheerleaderScheduleOctober2026 only.
+   October 1 stays assigned to the same person. Claim records are in a separate
+   node and are not replaced. Turn counts include October 1; the remaining days
+   go to the least-assigned participant, with a stable shuffled tie order.
+   Later participants do not change the schedule. No Cloud Function is needed.
+
+Do not commit the roster or generated schedule. The generator writes a new file
+and refuses to overwrite one. It neither connects to Firebase nor runs Git.
+A missing assignment shows no card. Failed schedule/claim reads show a notice and
+disable claims, while retaining previously loaded bonuses. Passing leaves the
+day unassigned to anyone else. Accept can reverse a pass on the same day.
+Bonuses count in personal/team totals and daily history, not activity averages,
+the goal, the 400 Club, participation starts, or rest-day eligibility. The daily
+team statistics total includes bonuses; its logged-person count remains activity-only.
+
+Run node verify-cheerleader.cjs for local behavior and rule-expression checks.
+Live Firebase Rules Playground checks are still required before launch: another
+UID, direct claim before acceptance, extra fields, deletion, before/after the
+assignment window, and schedule writes must fail; accept/claim/undo by the
+assigned participant during their day must succeed.

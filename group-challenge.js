@@ -244,6 +244,9 @@ async function fetchAll() {
     const data = JSON.parse(localStorage.getItem(TEST_STORAGE_KEY) || 'null');
     participants = data?.participants || [];
     entriesByUid = Object.fromEntries(Object.entries(data?.entriesByUid || {}).map(([uid, entries]) => [uid, sanitizeEntries(entries)]));
+    cheerSchedule = data?.cheerSchedule || {};
+    cheerClaims = data?.cheerClaims || {};
+    cheerReady = true;
     joinOpen = true;
     loadState = 'ready';
     return;
@@ -271,6 +274,7 @@ async function fetchAll() {
       }
     }
 
+    await fetchCheerleader();
     participants.sort((a, b) => a.name.localeCompare(b.name));
     loadState = 'ready';
   } catch (error) {
@@ -311,7 +315,7 @@ async function saveOwnedRecord() {
   if (!ownedUid) return;
 
   if (TEST_MODE) {
-    localStorage.setItem(TEST_STORAGE_KEY, JSON.stringify({ participants, entriesByUid }));
+    localStorage.setItem(TEST_STORAGE_KEY, JSON.stringify({ participants, entriesByUid, cheerSchedule, cheerClaims }));
     return;
   }
 
@@ -377,6 +381,9 @@ async function joinChallenge() {
 }
 
 function resetTestData() {
+  cheerSchedule = {};
+  cheerClaims = {};
+  cheerReady = true;
   if (!TEST_MODE) return;
   localStorage.removeItem(TEST_STORAGE_KEY);
   localStorage.removeItem(TEST_IDENTITY_STORAGE_KEY);
@@ -431,6 +438,7 @@ function refreshAll() {
 }
 
 function render() {
+  renderCheerleader();
   renderNames();
   renderGoalMeta();
   renderDailyActivities();
@@ -586,7 +594,7 @@ function renderGoalMeta() {
       : challengeEnded
         ? `Challenge complete. We finished ${formatNumber(goalTotal - monthTotal)} points short of our group goal.`
     : `We need to average ${formatNumber(averageNeededPerParticipant)} points daily per person to win the month. Rest days are already included in our goal. Log only on your scoring days.`;
-  if (goalReached && pendingOwnedSaves === 0) celebrateGoalReached();
+  if (goalReached && pendingOwnedSaves === 0 && cheerReady && !cheerSaving) celebrateGoalReached();
   els.goalTodayTarget.classList.toggle('hidden', !showTodayTarget);
   els.goalTodayTarget.textContent = showTodayTarget
     ? `Team points needed each day: ${formatNumber(teamPointsNeededEachDay)}`
@@ -942,7 +950,7 @@ function renderPersonalSummary() {
 
   const todayKey = formatDateKey(getCurrentDate());
   els.personalMonth.textContent = formatNumber(computePlayerMonthTotal(ownedUid));
-  els.personalToday.textContent = formatNumber(computePlayerTotalsForDate(ownedUid, todayKey));
+  els.personalToday.textContent = formatNumber(computePlayerTotalsForDate(ownedUid, todayKey) + cheerBonus(ownedUid, todayKey));
   els.personalAverage.textContent = formatNumber(computePlayerDailyAverage(ownedUid));
   const completedDays = Math.max(0, getDaysElapsed() - 1);
   els.personalParticipation.textContent = `${computePlayerParticipationDays(ownedUid, todayKey)}/${completedDays}`;
@@ -993,8 +1001,11 @@ function renderDailyHistory() {
     const section = document.createElement('section');
     section.className = 'history-day';
     const heading = document.createElement('h3');
-    heading.textContent = `${formatDate(date)} — ${formatNumber(computePlayerTotalsForDate(ownedUid, dateKey))} pts`;
+    heading.textContent = `${formatDate(date)} — ${formatNumber(computePlayerTotalsForDate(ownedUid, dateKey) + cheerBonus(ownedUid, dateKey))} pts`;
     section.appendChild(heading);
+    if (cheerBonus(ownedUid, dateKey)) {
+      const bonus = document.createElement('p'); bonus.textContent = 'Cheerleader bonus: +100 points'; section.appendChild(bonus);
+    }
     if (isRestDay(ownedUid, dateKey) || !entry?.selected?.length) {
       const empty = document.createElement('p');
       empty.className = 'personal-activity-empty';
@@ -1078,7 +1089,7 @@ function renderParticipationList() {
 
 function computeTeamTotalForDate(date) {
   const dateKey = formatDateKey(date);
-  return participants.reduce((total, participant) => total + computePlayerTotalsForDate(participant.uid, dateKey), 0);
+  return participants.reduce((total, participant) => total + computePlayerTotalsForDate(participant.uid, dateKey) + cheerBonus(participant.uid, dateKey), 0);
 }
 
 function computePlayerTotalsForDate(uid, dateKey) {
@@ -1116,7 +1127,8 @@ function formatAmount(activity, amount) {
 
 function computePlayerMonthTotal(uid) {
   const entryMap = entriesByUid[uid] || {};
-  return Object.keys(entryMap).reduce((total, dateKey) => total + computePlayerTotalsForDate(uid, dateKey), 0);
+  return Object.keys(entryMap).reduce((total, dateKey) => total + computePlayerTotalsForDate(uid, dateKey), 0)
+    + Object.keys(cheerSchedule).reduce((total, key) => total + cheerBonus(uid, key), 0);
 }
 
 function computePlayerDailyAverage(uid) {
@@ -1229,9 +1241,9 @@ function computeMonthTotal() {
 function computeMonthTotalBeforeDate(dateKeyLimit) {
   return participants.reduce((total, participant) => {
     const entryMap = entriesByUid[participant.uid] || {};
-    return total + Object.keys(entryMap).reduce((sum, dateKey) => {
+    return total + [...new Set([...Object.keys(entryMap), ...Object.keys(cheerSchedule)])].reduce((sum, dateKey) => {
       if (!isChallengeDateKey(dateKey) || dateKey >= dateKeyLimit) return sum;
-      return sum + computePlayerTotalsForDate(participant.uid, dateKey);
+      return sum + computePlayerTotalsForDate(participant.uid, dateKey) + cheerBonus(participant.uid, dateKey);
     }, 0);
   }, 0);
 }
