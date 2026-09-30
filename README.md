@@ -19,7 +19,7 @@ work together toward a shared team goal.
 ## Scoring
 
 - Push ups: enter actual reps, 2 points each
-- Pull ups: enter actual reps, 10 points each
+- Pull ups: choose Full (10 points per rep) or Modified (2 points per rep). Both cap at 100 base points.
 - Squats/Lunges: enter actual reps, 1 point each
 - Sit ups: enter actual reps, 1 point each
 - Plank: enter actual seconds, 10 points per 30 seconds
@@ -204,3 +204,8 @@ the former running double days (October 5, 12, 28). Existing October scores may
 therefore recalculate under the new categories and schedule. Publish the updated
 October database rules before using Strength. No live records are migrated by
 this file update; a participant saves their normalized record on their next edit.
+
+Pull-up type is saved per entry as pullupType (full or modified). Missing types
+retain Full scoring. The last successful selection is remembered locally per
+participant, project, and test/live mode. Publish the updated October rules
+before deploying this version so type selections can be saved.

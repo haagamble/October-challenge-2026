@@ -890,3 +890,6 @@ body:has(.history-dialog[open]) {
 .week-schedule ul { list-style: none; padding: 0; margin-bottom: 0; }
 .week-schedule li { padding: 8px; border-radius: 6px; }
 .week-schedule [aria-current="date"] { background: #e3eee7; color: #174b36; font-weight: 700; }
+
+.pullup-type { display: grid; gap: 6px; margin: 10px 0; font-weight: 600; }
+.pullup-type select { width: 100%; min-width: 0; padding: 10px; border: 1px solid #aaa; border-radius: 8px; font: inherit; background: #fff; color: #222; }

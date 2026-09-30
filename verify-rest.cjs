@@ -104,7 +104,7 @@ run(`
   reset(); renderDailyActivities();
   assert.equal(document.getElementById('restButton').disabled,false);
   assert.equal(document.getElementById('weekSchedule').children.length,7);
-  assert.ok(document.getElementById('weekSchedule').children[0].textContent.includes('Push ups'));
+  assert.ok(document.getElementById('weekSchedule').children[0].textContent.includes(getActivity(DOUBLE_ACTIVITY_SCHEDULE[0]).name));
   entriesByUid.a[challengeKey(1)]={rest:true}; renderDailyActivities();
   assert.equal(document.getElementById('restButton').disabled,true);
   assert.ok(document.getElementById('restStatus').textContent.includes('Enjoy'));
@@ -143,6 +143,38 @@ run(`
    await setOwnedEntry(challengeKey(1),{rest:true,selected:[],values:{}});
    assert.equal(entriesByUid.a[challengeKey(1)].rest,undefined); // points cannot be silently discarded
    pendingOwnedSaves=1; assert.equal(canLogToday(),false); assert.equal(canChooseRestToday(),false);
+   reset(8);
+   entriesByUid.a={'2026-10-03':{selected:['pullups'],values:{pullups:5}},'2026-10-08':{selected:['pullups'],values:{pullups:5}}};
+   assert.equal(computeRawPlayerPoints('a','2026-10-03'),50);
+   await updatePullupType('modified');
+   assert.equal(computeRawPlayerPoints('a','2026-10-08'),20); // double day
+   assert.equal(computeRawPlayerPoints('a','2026-10-03'),50); // older type remains Full
+   assert.equal(getPreferredPullupType(),'modified');
+   entriesByUid={}; await fetchAll();
+   assert.equal(entriesByUid.a['2026-10-08'].pullupType,'modified');
+   const pull=getActivity('pullups');
+   for (const [reps,full,modified] of [[0,0,0],[5,50,10],[10,100,20],[49,100,98],[50,100,100],[60,100,100]]) {
+     assert.equal(computeActivityBasePoints(pull,reps),full);
+     assert.equal(computeActivityBasePoints(pull,reps,{pullupType:'modified'}),modified);
+   }
+   await updatePullupType('invalid'); assert.equal(entriesByUid.a['2026-10-08'].pullupType,'modified');
+   testDay=9; toggleActivity('pullups');
+   assert.equal(entriesByUid.a['2026-10-09'].pullupType,'modified');
+   await Promise.resolve(); await Promise.resolve();
+   ownedUid='b'; assert.equal(getPreferredPullupType(),'full'); ownedUid='a';
+   els.personalActivities=document.getElementById('personalActivities');
+   testDay=8; renderPersonalActivities(entriesByUid.a['2026-10-08']);
+   assert.ok(els.personalActivities.children[0].children[0].textContent.includes('Modified'));
+   assert.ok(els.personalActivities.children[0].children[1].textContent.includes('20 pts'));
+   els.historyDays=document.getElementById('historyDays'); renderDailyHistory();
+   assert.ok(els.historyDays.children[0].children[1].children[0].children[1].textContent.includes('20'));
+   pendingOwnedSaves=0; renderDailyActivities();
+   const pullCard=els.activityGrid.children[1];
+   const selector=pullCard.children.find(child=>child.className==='pullup-type').children[0];
+   assert.equal(selector.value,'modified'); assert.equal(selector.disabled,false);
+   entriesByUid.a['2026-10-08']={rest:true,selected:[],values:{}};
+   await updatePullupType('full'); assert.equal(entriesByUid.a['2026-10-08'].pullupType,undefined);
+   assert.equal(sanitizeEntries({'2026-10-08':{rest:true,pullupType:'modified'}})['2026-10-08'].pullupType,undefined);
  })()`);
  const live = vm.createContext({assert, window:{location:{search:''}}, localStorage:{getItem:()=>null},URLSearchParams,URL,Intl,Date});
  vm.runInContext(source,live);

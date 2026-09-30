@@ -42,9 +42,9 @@ vm.runInContext(`
   }
   const strength=getActivity('strength');
   if (computeActivityBasePoints(strength,35)!==35 || computeActivityBasePoints(strength,150)!==100) throw Error('Strength scoring');
-  entriesByUid={a:sanitizeEntries({'2026-10-05':{selected:['strength'],values:{strength:125}}})};
-  getChallengeDateParts = () => ({year:2026,month:10,day:5});
-  if (computePlayerTotalsForDate('a','2026-10-05')!==200) throw Error('Strength double cap');
+  entriesByUid={a:sanitizeEntries({'2026-10-01':{selected:['strength'],values:{strength:125}}})};
+  getChallengeDateParts = () => ({year:2026,month:10,day:1});
+  if (computePlayerTotalsForDate('a','2026-10-01')!==200) throw Error('Strength double cap');
   if (ACTIVITY_DEFS.length !== 11 || ACTIVITY_DEFS.some(a=>a.id==='running')) throw Error('Choices');
   for (const id of DOUBLE_ACTIVITY_SCHEDULE) if(!getActivity(id)) throw Error('Unknown double activity');
   if (getActivity('squats').name!=='Squats/Lunges') throw Error('Squat label');
@@ -61,7 +61,7 @@ assert.ok(rules.groupChallengeOctober2026.$uid.entries.$date.values.$activity['.
 const handlers={}; const deleted=[]; let pending;
 vm.runInNewContext(fs.readFileSync(path.join(root,'service-worker.js'),'utf8'),{
  self:{addEventListener:(name,fn)=>handlers[name]=fn,clients:{claim:()=>{}},registration:{scope:'https://example.test/Oct-group-challenge-2026/'}},
- caches:{keys:async()=>['group-challenge-v48','plank-v1','october-2026-group-challenge-v0','october-2026-group-challenge-v7'],delete:async key=>deleted.push(key)},URL
+ caches:{keys:async()=>['group-challenge-v48','plank-v1','october-2026-group-challenge-v0','october-2026-group-challenge-v8'],delete:async key=>deleted.push(key)},URL
 });
 handlers.activate({waitUntil:p=>pending=p});
 pending.then(()=>{

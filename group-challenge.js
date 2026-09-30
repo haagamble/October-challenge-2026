@@ -299,6 +299,9 @@ function sanitizeEntries(entries) {
       values[activityId] = normalizeActivityAmount(activity, rawValue);
     });
     clean[dateKey] = entry.rest === true ? { rest: true, selected: [], values: {} } : { selected, values };
+    if (!entry.rest && selected.includes('pullups') && ['full', 'modified'].includes(entry.pullupType)) {
+      clean[dateKey].pullupType = entry.pullupType;
+    }
   }
 
   return clean;
@@ -723,7 +726,10 @@ function renderDailyActivities() {
 
     const meta = document.createElement('div');
     meta.className = 'activity-meta';
-    meta.textContent = activity.notes;
+    const pullupType = selected ? (currentEntry.pullupType || 'full') : getPreferredPullupType();
+    meta.textContent = activity.id === 'pullups'
+      ? (pullupType === 'modified' ? 'Enter reps - 2 pts each. 100 pt cap at 50 reps.' : 'Enter reps - 10 pts each. 100 pt cap at 10 reps.')
+      : activity.notes;
 
     const doubleCallout = document.createElement('div');
     doubleCallout.className = 'activity-double-callout';
@@ -732,7 +738,7 @@ function renderDailyActivities() {
     const points = document.createElement('div');
     points.className = 'activity-points';
     const amount = selected ? getActivityValueForToday(activity.id, dateKey) : 0;
-    const basePoints = computeActivityBasePoints(activity, amount);
+    const basePoints = computeActivityBasePoints(activity, amount, currentEntry);
     const earnedPoints = isDouble ? basePoints * 2 : basePoints;
     const atCap = selected && basePoints >= activity.maxPoints;
     points.classList.toggle('complete', atCap);
@@ -782,7 +788,26 @@ function renderDailyActivities() {
     actions.append(toggle, value);
     card.append(head);
     if (isDouble) card.appendChild(doubleCallout);
-    card.append(points, meta, actions);
+    card.append(points, meta);
+    if (activity.id === 'pullups') {
+      const typeLabel = document.createElement('label');
+      typeLabel.className = 'pullup-type';
+      typeLabel.textContent = 'Pull-up type';
+      const typeSelect = document.createElement('select');
+      typeSelect.setAttribute('aria-label', 'Pull-up type');
+      for (const [id, label] of [['full', 'Full - 10 pts per rep'], ['modified', 'Modified - 2 pts per rep']]) {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = label;
+        typeSelect.appendChild(option);
+      }
+      typeSelect.value = pullupType;
+      typeSelect.disabled = !canLog || !selected;
+      typeSelect.addEventListener('change', event => updatePullupType(event.target.value));
+      typeLabel.appendChild(typeSelect);
+      card.appendChild(typeLabel);
+    }
+    card.appendChild(actions);
     els.activityGrid.appendChild(card);
   });
 }
@@ -809,6 +834,7 @@ function toggleActivity(activityId) {
   if (selectedIndex >= 0) {
     entry.selected.splice(selectedIndex, 1);
     delete entry.values[activityId];
+    if (activityId === 'pullups') delete entry.pullupType;
   } else {
     if (entry.selected.length >= 3) {
       showToast('Choose 3 activities max for the day.');
@@ -816,6 +842,7 @@ function toggleActivity(activityId) {
     }
     entry.selected.push(activityId);
     entry.values[activityId] = 0;
+    if (activityId === 'pullups') entry.pullupType = getPreferredPullupType();
   }
 
   setOwnedEntry(dateKey, entry);
@@ -833,6 +860,26 @@ function updateActivityValue(activityId, value) {
   setOwnedEntry(dateKey, entry);
 }
 
+function pullupPreferenceKey() {
+  return `october-2026-pullup-type:${TEST_MODE ? 'test' : DB_URL}:${ownedUid}`;
+}
+
+function getPreferredPullupType() {
+  try { return localStorage.getItem(pullupPreferenceKey()) === 'modified' ? 'modified' : 'full'; }
+  catch { return 'full'; }
+}
+
+async function updatePullupType(type) {
+  if (!canLogToday() || !['full', 'modified'].includes(type)) return;
+  const dateKey = formatDateKey(getCurrentDate());
+  const entry = getPlayerEntry(ownedUid, dateKey);
+  if (!entry?.selected?.includes('pullups')) return;
+  const saved = await setOwnedEntry(dateKey, { ...entry, pullupType: type });
+  if (saved) {
+    try { localStorage.setItem(pullupPreferenceKey(), type); } catch { /* Preference is optional. */ }
+  }
+}
+
 async function setOwnedEntry(dateKey, entry) {
   if (!ownedUid || dateKey !== actualTodayKey() || !isInChallengeMonth()) return;
   if (entry.rest ? !canChooseRestToday() : !canLogToday()) return;
@@ -846,6 +893,7 @@ async function setOwnedEntry(dateKey, entry) {
   render();
   try {
     await saveOwnedRecord();
+    return true;
   } catch (error) {
     showToast(error.message || 'Save failed. Check your connection.');
     await fetchAll();
@@ -918,12 +966,12 @@ function renderPersonalActivities(entry) {
     const activity = getActivity(activityId);
     if (!activity) return;
     const amount = normalizeActivityAmount(activity, entry.values?.[activityId] || 0);
-    const basePoints = computeActivityBasePoints(activity, amount);
+    const basePoints = computeActivityBasePoints(activity, amount, entry);
     const points = activityId === doubleActivityId ? basePoints * 2 : basePoints;
     const row = document.createElement('div');
     row.className = 'personal-activity-row';
     const label = document.createElement('span');
-    label.textContent = activity.name;
+    label.textContent = activity.id === 'pullups' ? `Pull ups (${entry.pullupType === 'modified' ? 'Modified' : 'Full'})` : activity.name;
     const value = document.createElement('strong');
     value.textContent = `${formatAmount(activity, amount)} - ${points} pts`;
     row.append(label, value);
@@ -960,11 +1008,11 @@ function renderDailyHistory() {
         const activity = getActivity(id);
         if (!activity) return;
         const amount = normalizeActivityAmount(activity, entry.values?.[id] || 0);
-        const points = computeActivityBasePoints(activity, amount) * (id === doubleId ? 2 : 1);
+        const points = computeActivityBasePoints(activity, amount, entry) * (id === doubleId ? 2 : 1);
         const row = document.createElement('li');
         const description = document.createElement('div');
         const name = document.createElement('span');
-        name.textContent = `${activity.name}${id === doubleId ? ' · 2× points' : ''}`;
+        name.textContent = `${activity.name}${id === 'pullups' ? ` (${entry.pullupType === 'modified' ? 'Modified' : 'Full'})` : ''}${id === doubleId ? ' · 2× points' : ''}`;
         const logged = document.createElement('div');
         logged.className = 'activity-logged';
         logged.textContent = `${formatAmount(activity, amount)} logged`;
@@ -1047,7 +1095,7 @@ function computeRawPlayerPoints(uid, dateKey) {
     const activity = getActivity(activityId);
     if (!activity) return total;
     const rawValue = normalizeActivityAmount(activity, Number(entry.values?.[activityId] || 0));
-    const basePoints = computeActivityBasePoints(activity, rawValue);
+    const basePoints = computeActivityBasePoints(activity, rawValue, entry);
     return total + (activityId === doubleActivityId ? basePoints * 2 : basePoints);
   }, 0);
 }
@@ -1056,7 +1104,8 @@ function normalizeActivityAmount(activity, value) {
   return Math.max(0, Math.min(Math.round(Number(value) || 0), activity.maxAmount ?? 9999));
 }
 
-function computeActivityBasePoints(activity, amount) {
+function computeActivityBasePoints(activity, amount, entry = null) {
+  if (activity.id === 'pullups' && entry?.pullupType === 'modified') return Math.min(amount * 2, activity.maxPoints);
   const pointUnits = Math.floor(amount / activity.amountPerPointUnit);
   return Math.min(pointUnits * activity.pointsPerAmount, activity.maxPoints);
 }
