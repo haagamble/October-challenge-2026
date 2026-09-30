@@ -21,10 +21,10 @@ const ACTIVITY_DEFS = [
   { id: 'squats', name: 'Squats/Lunges', unit: 'reps', pointsPerAmount: 1, amountPerPointUnit: 1, pointCapAmount: 100, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter reps - 1 pt each' },
   { id: 'situps', name: 'Sit ups', unit: 'reps', pointsPerAmount: 1, amountPerPointUnit: 1, pointCapAmount: 100, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter reps - 1 pt each', detail: 'Full sit ups and crunches both count.' },
   { id: 'plank', name: 'Plank', unit: 'seconds', pointsPerAmount: 10, amountPerPointUnit: 30, pointCapAmount: 300, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter seconds - 10 pts per 30 sec' },
-  { id: 'walking', name: 'Running/Walking', unit: 'minutes', pointsPerAmount: 2, amountPerPointUnit: 1, pointCapAmount: 50, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter minutes - 2 pts per minute' },
+  { id: 'walking', name: 'Running/Walking', unit: 'minutes', pointsPerAmount: 5, amountPerPointUnit: 2, pointCapAmount: 40, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter minutes - 5 pts per 2 completed min' },
   { id: 'strength', name: 'Strength', unit: 'reps', pointsPerAmount: 1, amountPerPointUnit: 1, pointCapAmount: 100, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter reps - 1 pt each', detail: 'Weight-training exercises such as dumbbell curls, presses, rows, or kettlebell swings. Count each rep once, in one category only.' },
   { id: 'dancing', name: 'Dancing/Aerobics', unit: 'minutes', pointsPerAmount: 4, amountPerPointUnit: 1, pointCapAmount: 25, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter minutes - 4 pts per minute' },
-  { id: 'stairs', name: 'Stairs', unit: 'stairs', pointsPerAmount: 1, amountPerPointUnit: 5, pointCapAmount: 500, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter stairs - 1 pt per 5 stairs' },
+  { id: 'stairs', name: 'Stairs', unit: 'stairs', pointsPerAmount: 1, amountPerPointUnit: 4, pointCapAmount: 400, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter stairs - 1 pt per 4 stairs' },
   { id: 'bird-dog', name: 'Bird dog', unit: 'reps', pointsPerAmount: 2, amountPerPointUnit: 1, pointCapAmount: 50, maxPoints: 100, capLabel: '100 pt cap', notes: 'Enter reps - 2 pts each', detail: 'One rep means a right-left pair.' },
   { id: 'other', name: 'Other', unit: 'points', pointsPerAmount: 1, amountPerPointUnit: 1, pointCapAmount: 100, maxPoints: 100, maxAmount: 100, capLabel: '100 pt daily cap', notes: 'Enter 0-100 points. See FAQ.' }
 ];

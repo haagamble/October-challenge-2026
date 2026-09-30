@@ -32,12 +32,12 @@ vm.runInContext(`
   entriesByUid = {a:merged};
   getChallengeDateParts = () => ({year:2026,month:10,day:2});
   if (computePlayerTotalsForDate('a','2026-10-02') !== 210) throw Error('Shared doubled cap');
-  for (const [id, rate, capMinutes, doubleDate] of [['walking',2,50,'2026-10-02'],['dancing',4,25,'2026-10-07']]) {
+  for (const [id, rate, blockMinutes, capMinutes, doubleDate] of [['walking',5,2,40,'2026-10-02'],['dancing',4,1,25,'2026-10-07']]) {
     const activity=getActivity(id);
-    for(const minutes of [0,1,3,7,capMinutes-1,capMinutes,capMinutes+10]) {
-      if(computeActivityBasePoints(activity,minutes)!==Math.min(minutes*rate,100)) throw Error('Per-minute scoring '+id);
+    for(const minutes of [0,1,2,3,4,7,capMinutes-1,capMinutes,capMinutes+1,capMinutes+10]) {
+      if(computeActivityBasePoints(activity,minutes)!==Math.min(Math.floor(minutes/blockMinutes)*rate,100)) throw Error('Minute-block scoring '+id);
       entriesByUid={a:{[doubleDate]:{selected:[id],values:{[id]:minutes}}}};
-      if(computeRawPlayerPoints('a',doubleDate)!==Math.min(minutes*rate,100)*2) throw Error('Per-minute double points '+id);
+      if(computeRawPlayerPoints('a',doubleDate)!==Math.min(Math.floor(minutes/blockMinutes)*rate,100)*2) throw Error('Minute-block double points '+id);
     }
   }
   const strength=getActivity('strength');
@@ -61,7 +61,7 @@ assert.ok(rules.groupChallengeOctober2026.$uid.entries.$date.values.$activity['.
 const handlers={}; const deleted=[]; let pending;
 vm.runInNewContext(fs.readFileSync(path.join(root,'service-worker.js'),'utf8'),{
  self:{addEventListener:(name,fn)=>handlers[name]=fn,clients:{claim:()=>{}},registration:{scope:'https://example.test/Oct-group-challenge-2026/'}},
- caches:{keys:async()=>['group-challenge-v48','plank-v1','october-2026-group-challenge-v0','october-2026-group-challenge-v9'],delete:async key=>deleted.push(key)},URL
+ caches:{keys:async()=>['group-challenge-v48','plank-v1','october-2026-group-challenge-v0','october-2026-group-challenge-v13'],delete:async key=>deleted.push(key)},URL
 });
 handlers.activate({waitUntil:p=>pending=p});
 pending.then(()=>{

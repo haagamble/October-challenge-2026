@@ -23,10 +23,10 @@ work together toward a shared team goal.
 - Squats/Lunges: enter actual reps, 1 point each
 - Sit ups: enter actual reps, 1 point each
 - Plank: enter actual seconds, 10 points per 30 seconds
-- Running/Walking: enter actual minutes, 2 points per minute
+- Running/Walking: enter actual minutes, 5 points per 2 completed minutes (100 points at 40 minutes)
 - Strength: enter weight-training repetitions, 1 point each
 - Dancing/Aerobics: enter combined dancing or aerobics minutes (including video workouts), 4 points per minute
-- Stairs: enter actual stairs, 1 point per 5 stairs
+- Stairs: enter actual stairs, 1 point per 4 stairs (100 points at 400 stairs)
 - Bird dog: enter actual reps, 2 points each
 - Other: enter 0-100 self-assessed points total per day for all unlisted activities.
   100 means doable but challenging for you. Use a consistent standard and do not
