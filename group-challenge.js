@@ -952,8 +952,8 @@ function renderPersonalSummary() {
   els.personalMonth.textContent = formatNumber(computePlayerMonthTotal(ownedUid));
   els.personalToday.textContent = formatNumber(computePlayerTotalsForDate(ownedUid, todayKey) + cheerBonus(ownedUid, todayKey));
   els.personalAverage.textContent = formatNumber(computePlayerDailyAverage(ownedUid));
-  const completedDays = Math.max(0, getDaysElapsed() - 1);
-  els.personalParticipation.textContent = `${computePlayerParticipationDays(ownedUid, todayKey)}/${completedDays}`;
+  const participationDays = isBeforeChallenge() ? 0 : getDaysElapsed();
+  els.personalParticipation.textContent = `${participationDays ? computePlayerParticipationDays(ownedUid, todayKey) : 0}/${participationDays}`;
   renderPersonalActivities(getPlayerEntry(ownedUid, todayKey));
 }
 
@@ -1147,7 +1147,7 @@ function computePlayerParticipationDays(uid, todayKey) {
   let days = 0;
   for (let day = 1; day <= DAYS_IN_MONTH; day++) {
     const key = challengeKey(day);
-    if (key >= todayKey) break;
+    if (key > todayKey) break;
     if (isRestDay(uid, key) || computePlayerTotalsForDate(uid, key) > 0) days++;
   }
   return days;
