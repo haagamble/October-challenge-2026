@@ -581,7 +581,7 @@ function renderGoalMeta() {
     ? `(${formatNumber(teamPointsRemainingToday)} more points to reach today's target)`
     : '(Today\'s target reached)';
   els.teamMonth.textContent = formatNumber(monthTotal);
-  els.goalPace.textContent = `${Math.round(progress)}%`;
+  els.goalPace.textContent = `${(Math.floor(progress * 10) / 10).toFixed(1)}%`;
   els.goalText.textContent = `${formatNumber(monthTotal)} / ${formatNumber(goalTotal)}`;
   els.goalBar.style.width = `${progress}%`;
   els.goalMessage.classList.toggle('average-needed', showAverageMessage);
