@@ -570,7 +570,12 @@ function renderGoalMeta() {
   const challengeEnded = completedDays >= DAYS_IN_MONTH;
   const goalReached = goalTotal > 0 && monthTotal >= goalTotal;
   const teamPointsNeededEachDay = Math.ceil(Math.max(0, goalTotal - yesterdayTotal) / daysRemaining);
-  const averageNeededPerParticipant = Math.ceil(Math.max(0, goalTotal - yesterdayTotal) / daysRemaining / participants.length);
+  // Goal contributions are 250 per scoring day. Subtract completed-day
+  // contributions to exclude past days and preserve each person's rest allowance.
+  const remainingScoringDays = Math.max(0, (goalTotal - yesterdayPaceTarget) / DAILY_PERSON_GOAL);
+  const averageNeededPerParticipant = remainingScoringDays > 0
+    ? Math.ceil(Math.max(0, goalTotal - yesterdayTotal) / remainingScoringDays)
+    : 0;
   const teamPointsRemainingToday = Math.max(0, teamPointsNeededEachDay - teamTotal);
   const showTodayTarget = !isBeforeChallenge() && !challengeEnded && goalTotal > 0;
   const showAverageMessage = !isBeforeChallenge() && !challengeEnded && goalTotal > 0 && !goalReached;
@@ -593,7 +598,7 @@ function renderGoalMeta() {
       ? `We did it! We reached our group goal of ${formatNumber(goalTotal)} points!`
       : challengeEnded
         ? `Challenge complete. We finished ${formatNumber(goalTotal - monthTotal)} points short of our group goal.`
-    : `We need to average ${formatNumber(averageNeededPerParticipant)} points daily per person to win the month. Rest days are already included in our goal. Log only on your scoring days.`;
+    : `We need to average ${formatNumber(averageNeededPerParticipant)} points per person per remaining scoring day to win the month. This includes today and counts only people who have started. Rest days are excluded.`;
   if (goalReached && pendingOwnedSaves === 0 && cheerReady && !cheerSaving) celebrateGoalReached();
   els.goalTodayTarget.classList.toggle('hidden', !showTodayTarget);
   els.goalTodayTarget.textContent = showTodayTarget
