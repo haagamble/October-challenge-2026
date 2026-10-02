@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'october-2026-group-challenge-';
-const CACHE_NAME = `${CACHE_PREFIX}v16`;
+const CACHE_NAME = `${CACHE_PREFIX}v18`;
 const APP_SHELL = [
   './',
   './index.html',

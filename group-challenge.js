@@ -559,7 +559,6 @@ function renderGoalMeta() {
   const goalTotal = computeTeamGoalThroughDay(DAYS_IN_MONTH);
   const progress = goalTotal === 0 ? 0 : Math.min((monthTotal / goalTotal) * 100, 100);
   const daysElapsed = isBeforeChallenge() ? 0 : getDaysElapsed();
-  const daysRemaining = Math.max(1, DAYS_IN_MONTH - daysElapsed + 1);
   const parts = getChallengeDateParts();
   const actualToday = dateFromChallengeParts(parts.year, parts.month, parts.day);
   const completedDays = Math.max(0, Math.min(DAYS_IN_MONTH, Math.floor((actualToday - getChallengeStartDate()) / ONE_DAY_MS)));
@@ -569,20 +568,22 @@ function renderGoalMeta() {
   const yesterdayDelta = yesterdayTotal - yesterdayPaceTarget;
   const challengeEnded = completedDays >= DAYS_IN_MONTH;
   const goalReached = goalTotal > 0 && monthTotal >= goalTotal;
-  const teamPointsNeededEachDay = Math.ceil(Math.max(0, goalTotal - yesterdayTotal) / daysRemaining);
+  const todayTeamGoal = Math.max(0, computeTeamGoalThroughDay(daysElapsed) - yesterdayPaceTarget);
   // Goal contributions are 250 per scoring day. Subtract completed-day
   // contributions to exclude past days and preserve each person's rest allowance.
   const remainingScoringDays = Math.max(0, (goalTotal - yesterdayPaceTarget) / DAILY_PERSON_GOAL);
   const averageNeededPerParticipant = remainingScoringDays > 0
     ? Math.ceil(Math.max(0, goalTotal - yesterdayTotal) / remainingScoringDays)
     : 0;
-  const teamPointsRemainingToday = Math.max(0, teamPointsNeededEachDay - teamTotal);
+  const teamPointsRemainingToday = Math.max(0, todayTeamGoal - teamTotal);
   const showTodayTarget = !isBeforeChallenge() && !challengeEnded && goalTotal > 0;
   const showAverageMessage = !isBeforeChallenge() && !challengeEnded && goalTotal > 0 && !goalReached;
 
   els.teamToday.textContent = formatNumber(teamTotal);
   els.teamTodayRemaining.classList.toggle('hidden', !showTodayTarget);
-  els.teamTodayRemaining.textContent = teamPointsRemainingToday > 0
+  els.teamTodayRemaining.textContent = todayTeamGoal === 0
+    ? '(No activity points required today)'
+    : teamPointsRemainingToday > 0
     ? `(${formatNumber(teamPointsRemainingToday)} more points to reach today's target)`
     : '(Today\'s target reached)';
   els.teamMonth.textContent = formatNumber(monthTotal);
@@ -602,7 +603,7 @@ function renderGoalMeta() {
   if (goalReached && pendingOwnedSaves === 0 && cheerReady && !cheerSaving) celebrateGoalReached();
   els.goalTodayTarget.classList.toggle('hidden', !showTodayTarget);
   els.goalTodayTarget.textContent = showTodayTarget
-    ? `Team points needed each day: ${formatNumber(teamPointsNeededEachDay)}`
+    ? `Today's team goal: ${formatNumber(todayTeamGoal)}`
     : '';
   const showYesterday = completedDays > 0 && !challengeEnded && yesterdayPaceTarget > 0;
   els.goalYesterday.classList.toggle('hidden', !showYesterday);
@@ -626,7 +627,14 @@ function computeTeamDailyStats() {
     const eligible = goal / DAILY_PERSON_GOAL;
     const points = computeTeamTotalForDate(date);
     const logged = participants.filter(person => computePlayerTotalsForDate(person.uid, dateKey) > 0).length;
-    rows.push({ date, points, goal, eligible, logged,
+    const participating = participants.filter(person => {
+      const firstDay = getParticipationStartDay(person.uid);
+      return firstDay !== null && firstDay <= day;
+    }).length;
+    const rested = participants.filter(person => isRestDay(person.uid, dateKey)).length;
+    const missed = Math.max(0, participating - logged - rested);
+    const notStarted = participants.length - participating;
+    rows.push({ date, points, goal, eligible, logged, rested, missed, participating, notStarted,
       average: eligible ? Math.round(points / eligible) : null,
       percent: goal ? Math.floor(points / goal * 100) : null,
       met: goal > 0 && points >= goal,
@@ -647,7 +655,7 @@ function renderTeamStats() {
       ${best ? `<p>Best team total: <b>${formatNumber(best.points)} points</b> on ${formatDate(best.date)}.</p>` : ''}
     </div>
     <p class="team-stats-note">Each day stands on its own: we can meet that day's goal even while catching up for the month. Today's results are still in progress and are excluded from the summary above.</p>
-    <p class="team-stats-note">The daily goal is 250 points per participant on scoring days. Each eligible full week includes one rest day with no goal. Additional missed days still count toward the goal. Participation counts people who logged points. Team totals can grow as more people start.</p>
+    <p class="team-stats-note">The daily goal is 250 points per participant on scoring days. Each eligible full week includes one rest day with no goal. Additional missed days still count toward the goal. Total people participating includes people who logged activity points, rested, or missed logging. Joined, not started counts members of the current roster who had not begun by that date. Cheerleader bonuses alone do not count as logging activity points. Team totals can grow as more people start.</p>
     ${rows.length ? rows.slice().reverse().map(row => `
       <section class="team-stats-day ${row.met ? 'goal-met' : ''}">
         <h3>${formatDate(row.date)}${row.isToday ? ' · Today, in progress' : ''}</h3>
@@ -657,7 +665,11 @@ function renderTeamStats() {
           <div><dt>Daily goal</dt><dd>${formatNumber(row.goal)}</dd></div>
           <div><dt>Daily goal achieved</dt><dd>${row.percent === null ? '—' : `${formatNumber(row.percent)}%`}</dd></div>
           <div><dt>Average per participant</dt><dd>${row.average === null ? '—' : `${formatNumber(row.average)} pts`}</dd></div>
-          <div><dt>People who logged points</dt><dd>${row.logged} of ${row.eligible}</dd></div>
+          <div><dt>People who logged points</dt><dd>${row.logged}</dd></div>
+          <div><dt>People who rested</dt><dd>${row.rested}</dd></div>
+          <div><dt>${row.isToday ? 'Not logged yet' : 'People who missed logging'}</dt><dd>${row.missed}</dd></div>
+          <div><dt>Total people participating</dt><dd>${row.participating}</dd></div>
+          <div><dt>Joined, not started</dt><dd>${row.notStarted}</dd></div>
         </dl>
       </section>`).join('') : '<p>The challenge has not started yet.</p>'}`;
 }

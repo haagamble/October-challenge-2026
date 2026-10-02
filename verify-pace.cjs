@@ -28,4 +28,41 @@ vm.runInContext(`
  assert.equal(computeTeamGoalThroughDay(31),6500);assert.ok(els.goalMessage.textContent.includes('250 points'));
  entriesByUid={};renderGoalMeta();assert.ok(!els.goalMessage.textContent.includes('NaN'));assert.ok(!els.goalMessage.textContent.includes('Infinity'));
 `,ctx);
+vm.runInContext(`
+ day=1;entriesByUid={};cheerSchedule={};cheerClaims={};
+ for(const uid of active)entriesByUid[uid]={'2026-10-01':{selected:['walking'],values:{walking:2}}};
+ renderGoalMeta();assert.equal(els.goalTodayTarget.textContent,"Today's team goal: 750");
+ assert.ok(els.teamTodayRemaining.textContent.includes('735 more points'));
+ entriesByUid['2']['2026-10-01']={rest:true};renderGoalMeta();
+ assert.equal(els.goalTodayTarget.textContent,"Today's team goal: 500");
+ assert.ok(els.teamTodayRemaining.textContent.includes('490 more points'));
+ cheerSchedule={'2026-10-01':{uid:'2'}};cheerClaims={'2026-10-01':{uid:'2',status:'claimed'}};
+ renderGoalMeta();assert.equal(els.goalTodayTarget.textContent,"Today's team goal: 500");
+ assert.ok(els.teamTodayRemaining.textContent.includes('390 more points'));
+ for(const uid of active)entriesByUid[uid]['2026-10-01']={rest:true};renderGoalMeta();
+ assert.equal(els.goalTodayTarget.textContent,"Today's team goal: 0");
+ assert.equal(els.teamTodayRemaining.textContent,'(No activity points required today)');
+ day=2;renderGoalMeta();assert.equal(els.goalTodayTarget.textContent,"Today's team goal: 750");
+`,ctx);
+vm.runInContext(`
+ day=2;participants=Array.from({length:12},(_,i)=>({uid:String(i),name:'Person '+i}));
+ entriesByUid={};cheerSchedule={};cheerClaims={};
+ for(let i=0;i<10;i++)entriesByUid[String(i)]={'2026-10-01':{selected:['walking'],values:{walking:2}}};
+ entriesByUid['10']={'2026-10-01':{rest:true}};
+ let rows=computeTeamDailyStats();let yesterday=rows[0];
+ assert.equal(yesterday.logged,10);assert.equal(yesterday.rested,1);assert.equal(yesterday.missed,0);
+ assert.equal(yesterday.participating,11);assert.equal(yesterday.notStarted,1);assert.equal(yesterday.goal,2500);
+ assert.equal(rows[1].missed,11);assert.equal(rows[1].isToday,true);
+ day=3;rows=computeTeamDailyStats();
+ assert.equal(rows[1].rested,10);assert.equal(rows[1].missed,1); // second miss after explicit Rest is not another Rest
+ entriesByUid['11']={'2026-10-03':{selected:['walking'],values:{walking:2}}};
+ rows=computeTeamDailyStats();assert.equal(rows[0].notStarted,1);assert.equal(rows[2].notStarted,0);
+ cheerSchedule={'2026-10-03':{uid:'10'}};cheerClaims={'2026-10-03':{uid:'10',status:'claimed'}};
+ rows=computeTeamDailyStats();assert.equal(rows[2].logged,1);
+ for(const row of rows)assert.equal(row.logged+row.rested+row.missed,row.participating);
+ els.teamStatsContent={};renderTeamStats();
+ assert.ok(els.teamStatsContent.innerHTML.includes('Total people participating'));
+ assert.ok(els.teamStatsContent.innerHTML.includes('Not logged yet'));
+ assert.ok(els.teamStatsContent.innerHTML.includes('People who missed logging'));
+`,ctx);
 console.log('PASS: 3 starters / 9 joined = 250, ahead/behind pace, rest allowance, bonus, late start and empty goal.');
