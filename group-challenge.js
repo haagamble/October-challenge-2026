@@ -56,6 +56,7 @@ const els = {};
 
 function init() {
   cacheElements();
+  document.getElementById('appVersion').textContent = `Version ${document.querySelector('meta[name="app-version"]').content}`;
   checkInvite();
   bindEvents();
   setupInstallPrompt();
