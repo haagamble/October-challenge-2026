@@ -1,4 +1,4 @@
-﻿const fs = require('node:fs');
+const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -61,7 +61,7 @@ assert.ok(rules.groupChallengeOctober2026.$uid.entries.$date.values.$activity['.
 const handlers={}; const deleted=[]; let pending;
 vm.runInNewContext(fs.readFileSync(path.join(root,'service-worker.js'),'utf8'),{
  self:{addEventListener:(name,fn)=>handlers[name]=fn,clients:{claim:()=>{}},registration:{scope:'https://example.test/Oct-group-challenge-2026/'}},
- caches:{keys:async()=>['group-challenge-v48','plank-v1','october-2026-group-challenge-v0','october-2026-group-challenge-v18'],delete:async key=>deleted.push(key)},URL
+ caches:{keys:async()=>['group-challenge-v48','plank-v1','october-2026-group-challenge-v0','october-2026-group-challenge-v19'],delete:async key=>deleted.push(key)},URL
 });
 handlers.activate({waitUntil:p=>pending=p});
 pending.then(()=>{

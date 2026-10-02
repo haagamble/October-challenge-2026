@@ -254,3 +254,22 @@ Live Firebase Rules Playground checks are still required before launch: another
 UID, direct claim before acceptance, extra fields, deletion, before/after the
 assignment window, and schedule writes must fail; accept/claim/undo by the
 assigned participant during their day must succeed.
+
+## Publishing app updates
+
+For every release (including text-only edits), increase the numeric app-version
+meta tag in index.html, the oct2026-N asset query versions in that file, and the
+vN cache version in service-worker.js together. Update the cache fixture in
+verify-october.cjs to match. Publish these files together through GitHub Pages.
+
+The app checks the published index.html without HTTP caching on return to the
+foreground, on reconnect, and every two minutes while visible. A newer release
+reloads automatically when online and there is no focused input, unsaved activity
+input, join name, activity/rest save, or cheerleader save. Failed activity saves
+keep the automatic reload blocked until the participant successfully saves that
+activity again. Firebase data continues to refresh separately.
+
+Participants need one manual refresh to receive this update mechanism initially.
+Run node verify-updates.cjs for the update and save-protection checks. After
+deployment, verify on an installed phone app by leaving one release open and
+publishing the next version, including a check while an activity field is edited.

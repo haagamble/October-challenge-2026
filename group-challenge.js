@@ -50,6 +50,7 @@ let joinOpen = false;
 let loadState = 'loading';
 let installPrompt = null;
 let pendingOwnedSaves = 0;
+const unsavedActivityInputs = new Set();
 
 const els = {};
 
@@ -59,6 +60,7 @@ function init() {
   bindEvents();
   setupInstallPrompt();
   registerServiceWorker();
+  setupAutomaticUpdates();
   startApp();
 }
 
@@ -804,6 +806,7 @@ function renderDailyActivities() {
     value.addEventListener('focus', (event) => event.target.select());
     value.addEventListener('input', (event) => {
       event.target.value = event.target.value.replace(/\D/g, '');
+      unsavedActivityInputs.add(activity.id);
     });
     value.addEventListener('change', (event) => updateActivityValue(activity.id, event.target.value));
     value.addEventListener('keydown', (event) => {
@@ -873,7 +876,7 @@ function toggleActivity(activityId) {
   setOwnedEntry(dateKey, entry);
 }
 
-function updateActivityValue(activityId, value) {
+async function updateActivityValue(activityId, value) {
   if (!canLogToday()) return;
   if (!ownedUid) return;
   const dateKey = formatDateKey(getCurrentDate());
@@ -882,7 +885,7 @@ function updateActivityValue(activityId, value) {
   if (!activity || !entry.selected.includes(activityId)) return;
 
   entry.values[activityId] = normalizeActivityAmount(activity, value);
-  setOwnedEntry(dateKey, entry);
+  if (await setOwnedEntry(dateKey, entry)) unsavedActivityInputs.delete(activityId);
 }
 
 function pullupPreferenceKey() {
@@ -1424,6 +1427,50 @@ function setupInstallPrompt() {
     installPrompt = null;
     els.installCard.classList.add('hidden');
   });
+}
+
+function setupAutomaticUpdates() {
+  const version = Number(document.querySelector('meta[name="app-version"]')?.content);
+  if (TEST_MODE || !version || window.location.protocol === 'file:') return;
+  let updateReady = false;
+  let checking = false;
+  let reloading = false;
+
+  const reloadWhenSafe = () => {
+    if (!updateReady || reloading || document.visibilityState !== 'visible' || navigator.onLine === false) return;
+    if (pendingOwnedSaves || cheerSaving || unsavedActivityInputs.size || els.joinName?.value?.trim()) return;
+    if (document.activeElement?.matches('input, select, textarea, [contenteditable="true"]')) return;
+    reloading = true;
+    window.location.reload();
+  };
+
+  const checkForUpdate = async () => {
+    if (checking || reloading || document.visibilityState !== 'visible' || navigator.onLine === false) return;
+    checking = true;
+    try {
+      // Read the published release number, independently of service-worker activation.
+      // This also works when a returning app already has a newer worker controlling it.
+      const response = await fetch(new URL('./index.html', window.location.href), { cache: 'no-store' });
+      if (response.ok) {
+        const html = await response.text();
+        const published = html.match(/<meta\s+name="app-version"\s+content="(\d+)"\s*\/?\s*>/i);
+        if (published && Number(published[1]) > version) updateReady = true;
+      }
+    } catch {
+      // Offline or a failed deployment check: keep the current app usable.
+    } finally {
+      checking = false;
+    }
+    reloadWhenSafe();
+  };
+
+  document.addEventListener('visibilitychange', checkForUpdate);
+  window.addEventListener('online', checkForUpdate);
+  window.addEventListener('pageshow', checkForUpdate);
+  window.setInterval(checkForUpdate, 2 * 60 * 1000);
+  // A deferred update can proceed shortly after the participant finishes saving.
+  window.setInterval(reloadWhenSafe, 2000);
+  checkForUpdate();
 }
 
 function registerServiceWorker() {
