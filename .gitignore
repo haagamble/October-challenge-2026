@@ -3,5 +3,14 @@ Thumbs.db
 .env
 .firebase/
 firebase-debug.log
+node_modules/
+database-debug.log
+*-debug.log
+.env.*
+gha-creds-*.json
+*-firebase-adminsdk-*.json
+*service-account*.json
+*-export.json
+firebase-backup*.json
 
 .private-cheerleader/

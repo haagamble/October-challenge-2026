@@ -9,7 +9,7 @@
     "groupChallengeOctober2026": {
       ".read": "auth != null",
       "$uid": {
-        ".write": "auth != null && auth.uid === $uid && (data.exists() || root.child('settingsOctober2026/joinOpen').val() === true)",
+        ".write": "now < 1793516400000 && (auth != null && auth.uid === $uid && (data.exists() || root.child('settingsOctober2026/joinOpen').val() === true))",
         ".validate": "newData.hasChild('name')",
         "name": {
           ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30"
@@ -51,7 +51,7 @@
     "cheerleaderClaimsOctober2026": {
       ".read": "auth != null",
       "$date": {
-        ".write": "auth != null && root.child('groupChallengeOctober2026').child(auth.uid).exists() && root.child('cheerleaderScheduleOctober2026').child($date).child('uid').val() === auth.uid && root.child('cheerleaderScheduleOctober2026').child($date).child('startAt').isNumber() && root.child('cheerleaderScheduleOctober2026').child($date).child('endAt').isNumber() && now >= root.child('cheerleaderScheduleOctober2026').child($date).child('startAt').val() && now < root.child('cheerleaderScheduleOctober2026').child($date).child('endAt').val() && newData.exists()",
+        ".write": "now < 1793516400000 && (auth != null && root.child('groupChallengeOctober2026').child(auth.uid).exists() && root.child('cheerleaderScheduleOctober2026').child($date).child('uid').val() === auth.uid && root.child('cheerleaderScheduleOctober2026').child($date).child('startAt').isNumber() && root.child('cheerleaderScheduleOctober2026').child($date).child('endAt').isNumber() && now >= root.child('cheerleaderScheduleOctober2026').child($date).child('startAt').val() && now < root.child('cheerleaderScheduleOctober2026').child($date).child('endAt').val() && newData.exists())",
         ".validate": "$date.matches(/^2026-10-(0[1-9]|[12][0-9]|3[01])$/) && newData.hasChildren(['uid','status']) && (newData.child('status').val() !== 'claimed' || (data.child('uid').val() === auth.uid && (data.child('status').val() === 'accepted' || data.child('status').val() === 'claimed'))) && (newData.child('status').val() !== 'passed' || data.child('status').val() !== 'claimed')",
         "uid": {
           ".validate": "newData.isString() && newData.val() === auth.uid"
@@ -62,6 +62,102 @@
         "$other": {
           ".validate": false
         }
+      }
+    },
+    "settingsNovember2026": {
+      ".read": "auth != null",
+      ".write": false
+    },
+    "groupChallengeNovember2026": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists() && root.child('settingsNovember2026/joinOpen').val() === true && now < 1796112000000 && (now >= 1793516400000 || root.child('groupChallengeOctober2026').child($uid).exists())",
+        ".validate": "newData.hasChildren(['name','nameKey','joinedAt','returning','cheerOptIn']) && (data.exists() || !newData.hasChild('entries'))",
+        "name": {
+          ".validate": "data.exists() ? newData.val() === data.val() : (newData.isString() && newData.val().length >= 1 && newData.val().length <= 30 && newData.val().matches(/^[^ ](.*[^ ])?$/) && (newData.parent().child('returning').val() !== true || newData.val() === root.child('groupChallengeOctober2026').child($uid).child('name').val()))"
+        },
+        "nameKey": {
+          ".validate": "data.exists() ? newData.val() === data.val() : (newData.isString() && newData.val() === newData.parent().child('name').val().toLowerCase().replace('%','%25').replace('.','%2E').replace('#','%23').replace('$','%24').replace('[','%5B').replace(']','%5D').replace('/','%2F') && root.child('namesNovember2026').child(newData.val()).val() === $uid)"
+        },
+        "returning": {
+          ".validate": "data.exists() ? newData.val() === data.val() : (newData.isBoolean() && newData.val() === root.child('groupChallengeOctober2026').child($uid).exists())"
+        },
+        "joinedAt": {
+          ".validate": "data.exists() ? newData.val() === data.val() : (newData.isNumber() && newData.val() === now)"
+        },
+        "cheerOptIn": {
+          ".validate": "data.exists() ? newData.val() === data.val() : (newData.isBoolean())"
+        },
+        "entries": {
+          "$date": {
+            ".validate": "$date.matches(/^2026-11-(0[1-9]|[12][0-9]|30)$/) && (!newData.hasChild('rest') || (!newData.hasChild('selected') && !newData.hasChild('values') && !newData.hasChild('pullupType'))) && (!data.child('rest').exists() || newData.child('rest').val() === true)",
+            "selected": {
+              ".validate": "newData.hasChild('0') && (!newData.hasChild('2') || newData.hasChild('1')) && (!newData.hasChild('1') || newData.child('0').val() !== newData.child('1').val()) && (!newData.hasChild('2') || (newData.child('0').val() !== newData.child('2').val() && newData.child('1').val() !== newData.child('2').val()))",
+              "$index": {
+                ".validate": "$index.matches(/^[0-2]$/) && newData.isString() && newData.val().matches(/^(pushups|pullups|squats|situps|plank|walking|running|strength|dancing|stairs|bird-dog|other)$/)"
+              }
+            },
+            "values": {
+              "$activity": {
+                ".validate": "$activity.matches(/^(pushups|pullups|squats|situps|plank|walking|running|strength|dancing|stairs|bird-dog|other)$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 9999 && ($activity !== 'other' || newData.val() <= 100) && newData.val() % 1 === 0"
+              }
+            },
+            "$other": {
+              ".validate": false
+            },
+            "rest": {
+              ".validate": "newData.isBoolean() && newData.val() === true && $date.matches(/^2026-11-(0[1-9]|1[0-9]|2[0-8])$/)"
+            },
+            "pullupType": {
+              ".validate": "newData.isString() && newData.val().matches(/^(full|modified)$/) && (newData.parent().child('selected/0').val() === 'pullups' || newData.parent().child('selected/1').val() === 'pullups' || newData.parent().child('selected/2').val() === 'pullups')"
+            },
+            ".write": "auth != null && auth.uid === $uid && root.child('groupChallengeNovember2026').child($uid).exists() && (($date === '2026-11-01' && now >= 1793516400000 && now < 1793606400000) || ($date === '2026-11-02' && now >= 1793606400000 && now < 1793692800000) || ($date === '2026-11-03' && now >= 1793692800000 && now < 1793779200000) || ($date === '2026-11-04' && now >= 1793779200000 && now < 1793865600000) || ($date === '2026-11-05' && now >= 1793865600000 && now < 1793952000000) || ($date === '2026-11-06' && now >= 1793952000000 && now < 1794038400000) || ($date === '2026-11-07' && now >= 1794038400000 && now < 1794124800000) || ($date === '2026-11-08' && now >= 1794124800000 && now < 1794211200000) || ($date === '2026-11-09' && now >= 1794211200000 && now < 1794297600000) || ($date === '2026-11-10' && now >= 1794297600000 && now < 1794384000000) || ($date === '2026-11-11' && now >= 1794384000000 && now < 1794470400000) || ($date === '2026-11-12' && now >= 1794470400000 && now < 1794556800000) || ($date === '2026-11-13' && now >= 1794556800000 && now < 1794643200000) || ($date === '2026-11-14' && now >= 1794643200000 && now < 1794729600000) || ($date === '2026-11-15' && now >= 1794729600000 && now < 1794816000000) || ($date === '2026-11-16' && now >= 1794816000000 && now < 1794902400000) || ($date === '2026-11-17' && now >= 1794902400000 && now < 1794988800000) || ($date === '2026-11-18' && now >= 1794988800000 && now < 1795075200000) || ($date === '2026-11-19' && now >= 1795075200000 && now < 1795161600000) || ($date === '2026-11-20' && now >= 1795161600000 && now < 1795248000000) || ($date === '2026-11-21' && now >= 1795248000000 && now < 1795334400000) || ($date === '2026-11-22' && now >= 1795334400000 && now < 1795420800000) || ($date === '2026-11-23' && now >= 1795420800000 && now < 1795507200000) || ($date === '2026-11-24' && now >= 1795507200000 && now < 1795593600000) || ($date === '2026-11-25' && now >= 1795593600000 && now < 1795680000000) || ($date === '2026-11-26' && now >= 1795680000000 && now < 1795766400000) || ($date === '2026-11-27' && now >= 1795766400000 && now < 1795852800000) || ($date === '2026-11-28' && now >= 1795852800000 && now < 1795939200000) || ($date === '2026-11-29' && now >= 1795939200000 && now < 1796025600000) || ($date === '2026-11-30' && now >= 1796025600000 && now < 1796112000000)) && (!data.child('rest').exists() || newData.child('rest').val() === true)"
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "namesNovember2026": {
+      ".read": "auth != null",
+      "$name": {
+        ".write": "auth != null && newData.exists() && root.child('settingsNovember2026/joinOpen').val() === true && now < 1796112000000 && (!data.exists() || data.val() === auth.uid)",
+        ".validate": "newData.isString() && newData.val() === auth.uid"
+      }
+    },
+    "cheerleaderPrivateNovember2026": {
+      ".read": false,
+      ".write": false,
+      "status": {
+        ".read": "auth != null"
+      },
+      "users": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          "claims": {
+            "$date": {
+              ".write": "auth != null && auth.uid === $uid && newData.exists() && root.child('cheerleaderPrivateNovember2026/users').child($uid).child('dates').child($date).child('uid').val() === auth.uid && now >= root.child('cheerleaderPrivateNovember2026/users').child($uid).child('dates').child($date).child('startAt').val() && now < root.child('cheerleaderPrivateNovember2026/users').child($uid).child('dates').child($date).child('endAt').val()",
+              ".validate": "$date.matches(/^2026-11-(0[1-9]|[12][0-9]|30)$/) && newData.hasChildren(['uid','status']) && (newData.child('status').val() !== 'claimed' || (data.child('uid').val() === auth.uid && (data.child('status').val() === 'accepted' || data.child('status').val() === 'claimed'))) && (newData.child('status').val() !== 'passed' || data.child('status').val() !== 'claimed') && (newData.parent().parent().parent().parent().parent().child('cheerleaderBonusNovember2026').child($date).val() === (newData.child('status').val() === 'claimed' ? 100 : 0))",
+              "uid": {
+                ".validate": "newData.isString() && newData.val() === auth.uid"
+              },
+              "status": {
+                ".validate": "newData.isString() && newData.val().matches(/^(accepted|passed|claimed)$/)"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "cheerleaderBonusNovember2026": {
+      ".read": "auth != null",
+      "$date": {
+        ".write": "auth != null && newData.exists() && root.child('cheerleaderPrivateNovember2026/users').child(auth.uid).child('dates').child($date).child('uid').val() === auth.uid && now >= root.child('cheerleaderPrivateNovember2026/users').child(auth.uid).child('dates').child($date).child('startAt').val() && now < root.child('cheerleaderPrivateNovember2026/users').child(auth.uid).child('dates').child($date).child('endAt').val()",
+        ".validate": "newData.isNumber() && newData.val() === (newData.parent().parent().child('cheerleaderPrivateNovember2026/users').child(auth.uid).child('claims').child($date).child('status').val() === 'claimed' ? 100 : 0)"
       }
     }
   }

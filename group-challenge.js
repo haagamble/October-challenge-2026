@@ -1,15 +1,37 @@
 const DB_URL = (window.GROUP_CHALLENGE_FIREBASE_CONFIG?.databaseURL || '').replace(/\/+$/, '');
 const FIREBASE_API_KEY = window.GROUP_CHALLENGE_FIREBASE_CONFIG?.apiKey || '';
 const JOIN_CODE = 'oct26';
-const CHALLENGE_DATA_PATH = 'groupChallengeOctober2026';
-const JOIN_OPEN_PATH = 'settingsOctober2026/joinOpen';
-const CHALLENGE_MONTH = 9; // October is month index 9 (zero-based).
-const CHALLENGE_YEAR = 2026;
 const CHALLENGE_TIME_ZONE = 'America/Los_Angeles';
-const DAYS_IN_MONTH = 31;
+const QUERY_PARAMS = new URLSearchParams(window.location.search);
+const LOCAL_PREVIEW = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) || window.location.protocol === 'file:';
+const TEST_MODE = LOCAL_PREVIEW || QUERY_PARAMS.get('test') === '1';
+let serverTimeOffset = 0;
+// Simulated time is restricted to browser-only testing, never live scoring.
+const previewNow = TEST_MODE ? QUERY_PARAMS.get('now') : null;
+if (previewNow && (!/(Z|[+-]\d{2}:\d{2})$/.test(previewNow) || !Number.isFinite(Date.parse(previewNow)))) {
+  throw new Error('Preview time must be an ISO timestamp with a timezone.');
+}
+const MONTH_CONFIGS = {
+  '2026-10': { name: 'October', year: 2026, month: 9 },
+  '2026-11': { name: 'November', year: 2026, month: 10 }
+};
+const currentParts = getChallengeDateParts();
+const currentMonthKey = `${currentParts.year}-${String(currentParts.month).padStart(2, '0')}`;
+const requestedMonth = QUERY_PARAMS.get('month');
+if (requestedMonth && !MONTH_CONFIGS[requestedMonth]) throw new Error('Unsupported challenge month.');
+const MONTH_KEY = requestedMonth || (MONTH_CONFIGS[currentMonthKey] ? currentMonthKey : currentMonthKey < '2026-10' ? '2026-10' : '2026-11');
+const MONTH_CONFIG = MONTH_CONFIGS[MONTH_KEY];
+const MONTH_NAME = MONTH_CONFIG.name;
+const CHALLENGE_MONTH = MONTH_CONFIG.month;
+const CHALLENGE_YEAR = MONTH_CONFIG.year;
+const DAYS_IN_MONTH = new Date(Date.UTC(CHALLENGE_YEAR, CHALLENGE_MONTH + 1, 0)).getUTCDate();
+const CHALLENGE_DATA_PATH = `groupChallenge${MONTH_NAME}${CHALLENGE_YEAR}`;
+const JOIN_OPEN_PATH = `settings${MONTH_NAME}${CHALLENGE_YEAR}/joinOpen`;
+const CHEER_SCHEDULE_PATH = `cheerleaderSchedule${MONTH_NAME}${CHALLENGE_YEAR}`;
+const CHEER_CLAIMS_PATH = `cheerleaderClaims${MONTH_NAME}${CHALLENGE_YEAR}`;
 const DAILY_PERSON_GOAL = 250;
-const TEST_STORAGE_KEY = 'october-2026-group-challenge-test-data';
-const TEST_IDENTITY_STORAGE_KEY = 'october-2026-group-challenge-test-player';
+const TEST_STORAGE_KEY = `${MONTH_NAME.toLowerCase()}-${CHALLENGE_YEAR}-group-challenge-test-data`;
+const TEST_IDENTITY_STORAGE_KEY = `${MONTH_NAME.toLowerCase()}-${CHALLENGE_YEAR}-group-challenge-test-player`;
 const AUTH_STORAGE_KEY = `october-2026-group-challenge-firebase-auth:${DB_URL}`;
 const INSTALL_DISMISSED_KEY = 'october-2026-group-challenge-install-dismissed';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -33,12 +55,10 @@ const DOUBLE_ACTIVITY_SCHEDULE = [
   'plank', 'strength', 'pushups', 'walking', 'bird-dog', 'situps', 'pullups', 'dancing', 'stairs', 'squats',
   'walking', 'squats', 'stairs', 'dancing', 'bird-dog', 'pullups', 'plank', 'strength', 'situps', 'pushups',
   'walking' // October 31 continues the rotation without repeating October 30.
-];
-
-const QUERY_PARAMS = new URLSearchParams(window.location.search);
-const TEST_MODE = QUERY_PARAMS.get('test') === '1';
+].slice(0, DAYS_IN_MONTH); // November repeats the first 30 days, as agreed.
 
 let participants = [];
+let returningMembers = [];
 let entriesByUid = {};
 let ownedUid = TEST_MODE ? localStorage.getItem(TEST_IDENTITY_STORAGE_KEY) : null;
 let currentUid = null;
@@ -50,12 +70,119 @@ let loadState = 'loading';
 let installPrompt = null;
 let pendingOwnedSaves = 0;
 let goalCelebratedThisVisit = false;
+let teamCheerTotals = {};
 const unsavedActivityInputs = new Set();
 
 const els = {};
 
+function navigateChallenge(month) {
+  if (pendingOwnedSaves || cheerSaving || unsavedActivityInputs.size || els.joinName?.value?.trim()) {
+    showToast('Finish saving your changes before switching months.');
+    return false;
+  }
+  const url = new URL(window.location.href);
+  if (month) url.searchParams.set('month', month);
+  else url.searchParams.delete('month');
+  window.location.assign(url.href);
+  return true;
+}
+
+function pastChallengeKeys() {
+  return Object.keys(MONTH_CONFIGS).filter(key => key < currentMonthKey).sort().reverse();
+}
+
+function setupChallengeNavigation() {
+  // nav=1 previews the normal navigation while retaining isolated test storage.
+  document.getElementById('testMonthPicker').classList.toggle('hidden', !TEST_MODE || QUERY_PARAMS.get('nav') === '1');
+  const pastButton = document.getElementById('pastChallengesButton');
+  const list = document.getElementById('pastChallengesList');
+  const past = pastChallengeKeys();
+  pastButton.classList.toggle('hidden', past.length === 0);
+  pastButton.addEventListener('click', () => {
+    const expanded = pastButton.getAttribute('aria-expanded') !== 'true';
+    pastButton.setAttribute('aria-expanded', String(expanded));
+    list.classList.toggle('hidden', !expanded);
+  });
+  for (const key of past) {
+    const config = MONTH_CONFIGS[key];
+    const button = document.createElement('button');
+    button.className = 'btn';
+    button.type = 'button';
+    button.textContent = `${config.name} ${config.year}`;
+    button.addEventListener('click', () => navigateChallenge(key));
+    list.appendChild(button);
+  }
+  const back = document.getElementById('currentChallengeButton');
+  back.classList.toggle('hidden', MONTH_KEY === currentMonthKey);
+  back.addEventListener('click', () => navigateChallenge(null));
+  const upcoming = MONTH_KEY === '2026-10' && currentMonthKey === '2026-10';
+  document.getElementById('nextChallengeCard').classList.toggle('hidden', !upcoming);
+  document.getElementById('nextChallengeButton').addEventListener('click', () => navigateChallenge('2026-11'));
+}
+
+function setupMonthView() {
+  setupChallengeNavigation();
+  document.getElementById('newCheerOptInLabel').classList.toggle('hidden', MONTH_KEY === '2026-10');
+  document.getElementById('newCheerOptInNote').classList.toggle('hidden', MONTH_KEY === '2026-10');
+  const title = `${MONTH_NAME} ${CHALLENGE_YEAR} Group Challenge`;
+  document.title = title;
+  document.querySelector('h1').textContent = title;
+  const selector = document.getElementById('challengeMonth');
+  selector.value = MONTH_KEY;
+  selector.addEventListener('change', () => {
+    if (!navigateChallenge(selector.value)) {
+      selector.value = MONTH_KEY;
+    }
+  });
+  document.getElementById('monthViewNotice').textContent = !isInChallengeMonth()
+    ? (isBeforeChallenge() ? 'This month has not started. Returning participants can join early; logging opens on day 1.' : 'Completed month — read-only history.')
+    : TEST_MODE ? 'Local preview: changes stay in this browser. No Firebase access.' : '';
+  if (TEST_MODE) {
+    document.getElementById('previewClock').textContent = `Pacific date: ${actualTodayKey()}${previewNow ? ' (simulated)' : ''}`;
+  }
+  // Keep explanatory month names and end dates consistent with the selected month.
+  if (MONTH_KEY !== '2026-10') {
+    document.getElementById('returningMemberHelp').classList.remove('hidden');
+    for (const paragraph of document.querySelectorAll('#helpDialog p')) {
+      paragraph.textContent = paragraph.textContent.replaceAll('October', MONTH_NAME)
+        .replaceAll('29-31', `29-${DAYS_IN_MONTH}`).replaceAll(`${MONTH_NAME} 31`, `${MONTH_NAME} ${DAYS_IN_MONTH}`)
+        .replaceAll('6,500', '6,250').replaceAll('6,750', '6,500');
+    }
+  }
+}
+
+function setupMonthRollover() {
+  const loadedDate = actualTodayKey();
+  const check = () => {
+    if (document.visibilityState === 'hidden' || pendingOwnedSaves || cheerSaving || unsavedActivityInputs.size) return;
+    if (actualTodayKey() !== loadedDate) window.location.reload();
+  };
+  document.addEventListener('visibilitychange', check);
+  window.addEventListener('online', check);
+  const refreshOnReturn = () => {
+    if (document.visibilityState === 'hidden' || loadState !== 'ready' || pendingOwnedSaves || cheerSaving || unsavedActivityInputs.size) return;
+    fetchAll().then(refreshAll).catch(() => {});
+  };
+  document.addEventListener('visibilitychange', refreshOnReturn);
+  window.addEventListener('online', refreshOnReturn);
+  window.setInterval(check, 30000);
+}
+
+function setupGoalCelebrationReplay() {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      goalCelebratedThisVisit = false;
+      return;
+    }
+    if (document.visibilityState === 'visible' && loadState === 'ready') renderGoalMeta();
+  });
+}
+
 function init() {
   cacheElements();
+  setupMonthView();
+  setupGoalCelebrationReplay();
+  setupMonthRollover();
   document.getElementById('appVersion').textContent = `Version ${document.querySelector('meta[name="app-version"]').content}`;
   checkInvite();
   bindEvents();
@@ -228,11 +355,12 @@ async function ensureAuthenticated(forceRefresh = false) {
 }
 
 async function firebaseRequest(path, options = {}, hasRetried = false) {
+  if (TEST_MODE) throw new Error('Firebase access is disabled in local/test mode.');
   const session = await ensureAuthenticated();
   const separator = path.includes('?') ? '&' : '?';
   const response = await fetch(
     `${DB_URL}/${path}.json${separator}auth=${encodeURIComponent(session.idToken)}`,
-    options
+    {cache:'no-store',...options}
   );
 
   if (response.status === 401 && !hasRetried) {
@@ -242,8 +370,77 @@ async function firebaseRequest(path, options = {}, hasRetried = false) {
   return response;
 }
 
-async function fetchAll() {
+function monthlyNameKey(name) {
+  return name.trim().toLowerCase().replace(/%/g,'%25').replace(/[.#$\[\]\/]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+async function fetchMonthlyPrivate() {
+  const uid = authSession.localId;
+  const [own, status, bonuses] = await Promise.all([
+    firebaseRequest(`cheerleaderPrivateNovember2026/users/${uid}`),
+    firebaseRequest('cheerleaderPrivateNovember2026/status'),
+    firebaseRequest('cheerleaderBonusNovember2026')
+  ]);
+  if (![own,status,bonuses].every(response => response.ok)) throw new Error('Cheerleader updates are unavailable.');
+  const [mine, state, totals] = await Promise.all([own.json(),status.json(),bonuses.json()]);
+  cheerSchedule = mine?.dates || {};
+  cheerClaims = mine?.claims || {};
+  automaticCheerSchedule = state?.generatedAt ? {private:true} : null;
+  teamCheerTotals = totals || {};
+  cheerReady = true;
+}
+
+async function fetchLiveMonth() {
+  const uid = authSession.localId;
+  const [roster, setting, previous] = await Promise.all([
+    firebaseRequest(CHALLENGE_DATA_PATH), firebaseRequest(JOIN_OPEN_PATH),
+    firebaseRequest(`groupChallengeOctober2026/${uid}/name`)
+  ]);
+  if (![roster,setting,previous].every(response => response.ok)) throw new Error('Could not load the monthly challenge.');
+  const serverDate = Date.parse(roster.headers?.get('date') || '');
+  if (Number.isFinite(serverDate)) serverTimeOffset = serverDate - Date.now();
+  const [records, open, oldName] = await Promise.all([roster.json(),setting.json(),previous.json()]);
+  participants = [];
+  entriesByUid = {};
+  for (const [id, record] of Object.entries(records || {})) {
+    if (!record?.name) continue;
+    participants.push({uid:id,name:record.name,returning:record.returning,joinedAt:record.joinedAt,cheerOptIn:record.cheerOptIn});
+    entriesByUid[id] = sanitizeEntries(record.entries || {});
+  }
+  participants.sort((a,b) => a.name.localeCompare(b.name));
+  returningMembers = oldName ? [{uid,name:oldName}] : [];
+  ownedUid = participants.some(member => member.uid === uid) || oldName ? uid : null;
+  joinOpen = open === true;
+  await fetchMonthlyPrivate();
+  loadState = 'ready';
+}
+
+async function joinLiveMonth(name, cheerOptIn) {
+  const uid = authSession.localId;
+  const existing = await firebaseRequest(`${CHALLENGE_DATA_PATH}/${uid}`);
+  if (!existing.ok) throw new Error('Could not check your membership.');
+  if (await existing.json()) {await fetchLiveMonth(); return;}
+  const nameKey = monthlyNameKey(name);
+  const reservation = await firebaseRequest(`namesNovember2026/${encodeURIComponent(nameKey)}`, {
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(uid)
+  });
+  if (!reservation.ok) throw new Error('That name is already reserved, or joining is closed. Contact the organizer if this is your previous identity.');
+  const response = await firebaseRequest(`${CHALLENGE_DATA_PATH}/${uid}`, {
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,nameKey,
+      returning:returningMembers.some(member => member.uid === uid),cheerOptIn,joinedAt:{'.sv':'timestamp'}})
+  });
+  if (!response.ok) throw new Error('Could not join this month. Please try again.');
+  await fetchLiveMonth();
+}
+
+async function fetchAll(force = false) {
+  if (!force && (pendingOwnedSaves || cheerSaving || unsavedActivityInputs.size)) return;
   if (TEST_MODE) {
+    returningMembers = getPreviousTestMembers();
+    const remembered = localStorage.getItem('group-challenge-test-device');
+    if (!ownedUid && remembered !== '') {
+      ownedUid = remembered || returningMembers.find(member => member.uid === localStorage.getItem('october-2026-group-challenge-test-player'))?.uid || null;
+    }
     const data = JSON.parse(localStorage.getItem(TEST_STORAGE_KEY) || 'null');
     participants = data?.participants || [];
     entriesByUid = Object.fromEntries(Object.entries(data?.entriesByUid || {}).map(([uid, entries]) => [uid, sanitizeEntries(entries)]));
@@ -252,10 +449,15 @@ async function fetchAll() {
     cheerReady = true;
     joinOpen = true;
     loadState = 'ready';
+    await ensureAutomaticCheerSchedule();
     return;
   }
 
   try {
+    if (MONTH_KEY !== '2026-10') {
+      await fetchLiveMonth();
+      return;
+    }
     const [challengeResponse, joinResponse] = await Promise.all([
       firebaseRequest(CHALLENGE_DATA_PATH),
       firebaseRequest(JOIN_OPEN_PATH)
@@ -282,6 +484,7 @@ async function fetchAll() {
     loadState = 'ready';
   } catch (error) {
     console.error(error);
+    cheerReady = false;
     loadState = 'error';
   }
 }
@@ -314,11 +517,27 @@ function sanitizeEntries(entries) {
   return clean;
 }
 
-async function saveOwnedRecord() {
+async function saveOwnedRecord(dateKey = actualTodayKey()) {
   if (!ownedUid) return;
+  if (MONTH_KEY !== '2026-10' && !participants.some(member => member.uid === ownedUid)) throw new Error('Join this month before saving.');
+  const earlyOptIn = MONTH_KEY !== '2026-10' && isBeforeChallenge() &&
+    participants.some(member => member.uid === ownedUid && member.returning === true && member.startDate === challengeKey(1));
+  if (!isInChallengeMonth() && !earlyOptIn) throw new Error('This month is read-only.');
 
   if (TEST_MODE) {
     localStorage.setItem(TEST_STORAGE_KEY, JSON.stringify({ participants, entriesByUid, cheerSchedule, cheerClaims }));
+    return;
+  }
+
+  if (MONTH_KEY !== '2026-10') {
+    const date = dateKey;
+    const entry = entriesByUid[ownedUid]?.[date] || {selected:[],values:{}};
+    const empty = !entry.rest && !entry.selected?.length;
+    const response = await firebaseRequest(`${CHALLENGE_DATA_PATH}/${ownedUid}/entries/${date}`, {
+      method:empty ? 'DELETE' : 'PUT',headers:{'Content-Type':'application/json'},
+      ...(!empty ? {body:JSON.stringify(entry.rest ? {rest:true} : entry)} : {})
+    });
+    if (!response.ok) throw new Error('Could not save this entry. Only today’s Pacific-date entry is editable.');
     return;
   }
 
@@ -337,7 +556,78 @@ async function saveOwnedRecord() {
   if (!response.ok) throw new Error(`Firebase rejected the write (${response.status}).`);
 }
 
+function getPreviousTestMembers() {
+  const known = new Map();
+  for (const [key, config] of Object.entries(MONTH_CONFIGS)) {
+    if (key >= MONTH_KEY) continue;
+    const data = JSON.parse(localStorage.getItem(`${config.name.toLowerCase()}-${config.year}-group-challenge-test-data`) || 'null');
+    for (const member of data?.participants || []) known.set(member.uid, { uid: member.uid, name: member.name });
+  }
+  return [...known.values()];
+}
+
+function renderMonthJoin() {
+  const box = document.getElementById('monthJoinBox');
+  if (!box) return;
+  const member = returningMembers.find(item => item.uid === ownedUid);
+  const joined = participants.some(item => item.uid === ownedUid);
+  box.classList.toggle('hidden', MONTH_KEY === '2026-10' || !member || joined);
+  if (!member || joined) return;
+  const start = isBeforeChallenge() ? challengeKey(1) : actualTodayKey();
+  document.getElementById('monthJoinMessage').textContent =
+    `Welcome back, ${member.name}. Joining starts your participation on ${start}, including your scoring days in the group goal. Weekly rest rules apply.`;
+  const button = document.getElementById('monthJoinButton');
+  button.textContent = `Join ${MONTH_NAME}`;
+  button.disabled = pendingOwnedSaves > 0 || (!isBeforeChallenge() && !isInChallengeMonth());
+  button.onclick = joinReturningMonth;
+}
+
+async function joinReturningMonth() {
+  if (MONTH_KEY === '2026-10' || pendingOwnedSaves || (!isBeforeChallenge() && !isInChallengeMonth())) return;
+  const member = returningMembers.find(item => item.uid === ownedUid);
+  if (!member || participants.some(item => item.uid === ownedUid)) return;
+  if (participants.some(item => item.name.trim().toLowerCase() === member.name.trim().toLowerCase())) {
+    showToast(`The name ${member.name} is already used in ${MONTH_NAME}. Contact the organizer to resolve the duplicate identity.`);
+    return;
+  }
+  if (!TEST_MODE) {
+    if (!joinOpen) {showToast('Joining is currently closed.'); return;}
+    pendingOwnedSaves++;
+    render();
+    try {
+      await joinLiveMonth(member.name,document.getElementById('returningCheerOptIn').checked);
+      showToast(`You joined ${MONTH_NAME}.`);
+    } catch (error) {showToast(error.message);}
+    finally {pendingOwnedSaves--; render();}
+    return;
+  }
+  const record = { uid: member.uid, name: member.name, returning: true,
+    cheerOptIn: document.getElementById('returningCheerOptIn')?.checked !== false,
+    startDate: isBeforeChallenge() ? challengeKey(1) : actualTodayKey(),
+    joinedAt: new Date(previewNow || Date.now()).toISOString() };
+  participants.push(record);
+  participants.sort((a, b) => a.name.localeCompare(b.name));
+  entriesByUid[member.uid] = {};
+  pendingOwnedSaves++;
+  render();
+  try {
+    await saveOwnedRecord();
+    localStorage.setItem(TEST_IDENTITY_STORAGE_KEY, member.uid);
+    localStorage.setItem('group-challenge-test-device', member.uid);
+    showToast(`You joined ${MONTH_NAME}.`);
+  } catch (error) {
+    participants = participants.filter(item => item.uid !== member.uid);
+    delete entriesByUid[member.uid];
+    showToast(error.message || 'Could not join. Please try again.');
+  } finally {
+    pendingOwnedSaves--;
+    render();
+  }
+}
+
 async function joinChallenge() {
+  if (!isInChallengeMonth()) return;
+  if (MONTH_KEY !== '2026-10' && returningMembers.some(member => member.uid === ownedUid)) return joinReturningMonth();
   const name = (els.joinName.value || '').trim();
   if (!name) {
     showToast('Please enter your first name.');
@@ -352,19 +642,38 @@ async function joinChallenge() {
     showToast('Joining is currently closed.');
     return;
   }
-  if (participants.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
+  if (participants.some((item) => item.name.trim().toLowerCase() === name.toLowerCase())) {
     showToast('That name is already taken.');
     return;
   }
 
+  if (!TEST_MODE && MONTH_KEY !== '2026-10') {
+    if (pendingOwnedSaves) return;
+    pendingOwnedSaves++;
+    render();
+    try {
+      await joinLiveMonth(name,document.getElementById('newCheerOptIn').checked);
+      els.joinName.value = '';
+      showToast(`You joined ${MONTH_NAME}.`);
+    } catch (error) {showToast(error.message);}
+    finally {pendingOwnedSaves--; render();}
+    return;
+  }
+
   const uid = TEST_MODE ? `test-${Date.now()}` : authSession.localId;
-  participants.push({ uid, name });
+  participants.push({ uid, name, ...(MONTH_KEY !== '2026-10' ? {
+    joinedAt: new Date(previewNow || Date.now()).toISOString(),
+    cheerOptIn: document.getElementById('newCheerOptIn')?.checked !== false
+  } : {}) });
   participants.sort((a, b) => a.name.localeCompare(b.name));
   entriesByUid[uid] = {};
   ownedUid = uid;
   currentUid = uid;
 
-  if (TEST_MODE) localStorage.setItem(TEST_IDENTITY_STORAGE_KEY, uid);
+  if (TEST_MODE) {
+    localStorage.setItem(TEST_IDENTITY_STORAGE_KEY, uid);
+    localStorage.setItem('group-challenge-test-device', uid);
+  }
 
   try {
     await saveOwnedRecord();
@@ -389,7 +698,10 @@ function resetTestData() {
   cheerReady = true;
   if (!TEST_MODE) return;
   localStorage.removeItem(TEST_STORAGE_KEY);
+  localStorage.removeItem(`${TEST_STORAGE_KEY}-cheer-schedule`);
+  automaticCheerSchedule = null;
   localStorage.removeItem(TEST_IDENTITY_STORAGE_KEY);
+  localStorage.setItem('group-challenge-test-device', '');
   goalCelebratedThisVisit = false;
   participants = [];
   entriesByUid = {};
@@ -400,11 +712,12 @@ function resetTestData() {
 }
 
 function startPolling() {
-  fetchAll().then(refreshAll);
+  fetchAll().then(refreshAll).catch(() => {loadState = 'error'; render();});
   window.setInterval(async () => {
+    if (document.visibilityState === 'hidden') return;
     await fetchAll();
     refreshAll();
-  }, 15000);
+  }, !TEST_MODE && MONTH_KEY !== '2026-10' ? 60000 : 15000);
 }
 
 async function startApp() {
@@ -431,7 +744,7 @@ async function startApp() {
 }
 
 function refreshAll() {
-  if (ownedUid && !participants.some((item) => item.uid === ownedUid)) {
+  if (ownedUid && !participants.some((item) => item.uid === ownedUid) && !returningMembers.some(item => item.uid === ownedUid)) {
     if (TEST_MODE) localStorage.removeItem(TEST_IDENTITY_STORAGE_KEY);
     ownedUid = null;
   }
@@ -451,17 +764,27 @@ function render() {
   els.challengeContent.classList.toggle('hidden', loadState !== 'ready' || participants.length === 0);
 }
 
+function testMemberLabel(participant) {
+  const name = `${participant.name}${participant.uid === ownedUid ? ' (you)' : ''}`;
+  if (MONTH_KEY === '2026-10') return name;
+  return `${name} — ${participants.some(item => item.uid === participant.uid)
+    ? `joined ${MONTH_NAME}` : `returning, not joined ${MONTH_NAME}`}`;
+}
+
 function renderNames() {
   els.nameGrid.replaceChildren();
+  renderMonthJoin();
 
-  const canJoin = TEST_MODE || (hasInvite && joinOpen && !ownedUid && loadState === 'ready');
+  const returning = MONTH_KEY !== '2026-10' && returningMembers.some(member => member.uid === ownedUid);
+  const canJoin = !returning && isInChallengeMonth() && (TEST_MODE || (hasInvite && joinOpen && !ownedUid && loadState === 'ready'));
   els.joinBox.classList.toggle('hidden', !canJoin);
 
   // Keep the participant picker only for switching users in browser test mode.
-  (TEST_MODE ? participants : []).forEach((participant) => {
+  const testMembers = [...participants, ...returningMembers.filter(member => !participants.some(item => item.uid === member.uid))];
+  (TEST_MODE ? testMembers : []).forEach((participant) => {
     const chip = document.createElement('button');
     chip.className = `member-chip ${participant.uid === currentUid ? 'active' : ''} ${participant.uid === ownedUid ? 'me' : ''}`;
-    chip.textContent = participant.uid === ownedUid ? `${participant.name} (you)` : participant.name;
+    chip.textContent = testMemberLabel(participant);
     if (TEST_MODE) {
       chip.type = 'button';
       chip.addEventListener('click', () => selectParticipant(participant.uid));
@@ -469,7 +792,7 @@ function renderNames() {
     els.nameGrid.appendChild(chip);
   });
 
-  els.nameGrid.classList.toggle('hidden', !TEST_MODE || participants.length === 0);
+  els.nameGrid.classList.toggle('hidden', !TEST_MODE || testMembers.length === 0);
   renderStatus();
   renderIdentityNote();
 }
@@ -492,7 +815,11 @@ function renderStatus() {
   }
   if (participants.length === 0) {
     els.nameStatus.classList.remove('hidden');
-    if (TEST_MODE) {
+    if (MONTH_KEY !== '2026-10' && returningMembers.some(member => member.uid === ownedUid)) {
+      els.nameStatus.textContent = `You have not joined ${MONTH_NAME} yet. Use the Join ${MONTH_NAME} button above.`;
+    } else if (TEST_MODE && !isInChallengeMonth()) {
+      els.nameStatus.textContent = 'No test participants in this month. To add someone, open a preview date within this month.';
+    } else if (TEST_MODE) {
       els.nameStatus.innerHTML = '<strong>Your test group is empty.</strong>Add a pretend participant above to get started.';
     } else if (hasInvite && joinOpen) {
       els.nameStatus.innerHTML = '<strong>Be the first to join.</strong> Enter your first name above to start the challenge.';
@@ -509,8 +836,8 @@ function renderStatus() {
 
 function renderIdentityNote() {
   els.identityNote.replaceChildren();
-  els.identityNote.classList.toggle('hidden', participants.length === 0);
-  if (participants.length === 0) return;
+  els.identityNote.classList.toggle('hidden', participants.length === 0 && returningMembers.length === 0);
+  if (participants.length === 0 && returningMembers.length === 0) return;
 
   const message = document.createElement('span');
   if (!ownedUid) {
@@ -538,11 +865,12 @@ function renderIdentityNote() {
 
 function selectParticipant(uid) {
   if (!TEST_MODE) return;
-  if (!ownedUid) {
+  if (ownedUid !== uid) {
     const confirmed = window.confirm(`Use this device as ${getParticipantName(uid)}? You will be able to update this person's progress.`);
     if (!confirmed) return;
     ownedUid = uid;
     localStorage.setItem(TEST_IDENTITY_STORAGE_KEY, uid);
+    localStorage.setItem('group-challenge-test-device', uid);
   }
   currentUid = uid;
   render();
@@ -551,6 +879,7 @@ function selectParticipant(uid) {
 function forgetTestIdentity() {
   if (!TEST_MODE) return;
   localStorage.removeItem(TEST_IDENTITY_STORAGE_KEY);
+  localStorage.setItem('group-challenge-test-device', '');
   ownedUid = null;
   currentUid = null;
   render();
@@ -686,24 +1015,26 @@ function renderRestSchedule() {
   button.textContent = week.restDay === day ? 'Today is Rest' : 'Rest today';
   button.onclick = chooseRestToday;
   if (!isInChallengeMonth()) {
-    status.textContent = isBeforeChallenge() ? 'Rest choices open October 1, Pacific time.' : 'October challenge complete.';
+    status.textContent = isBeforeChallenge() ? `Rest choices open ${MONTH_NAME} 1, Pacific time.` : `${MONTH_NAME} challenge complete.`;
   } else if (day > 28) {
-    status.textContent = 'October 29–31 is a partial week: no rest allowance.';
+    status.textContent = `${MONTH_NAME} 29–${DAYS_IN_MONTH} is a partial week: no rest allowance.`;
   } else if (!ownedUid) {
     status.textContent = 'Join to log activities or choose Rest today.';
   } else if (week.restDay !== null) {
     status.textContent = week.restDay === day
       ? `${week.automatic ? 'Automatic rest day. ' : ''}Enjoy your break! Your weekly goal already includes it.`
-      : `Your rest day was October ${week.restDay}. Additional missed days count toward your goal.`;
+      : `Your rest day was ${MONTH_NAME} ${week.restDay}. Additional missed days count toward your goal.`;
   } else if (week.eligible || canChooseRestToday()) {
     status.textContent = computeRawPlayerPoints(ownedUid, challengeKey(day)) > 0
       ? 'One rest day this week. Clear today’s activity values before choosing Rest.'
       : 'One required rest day this week. Choose Rest today, or your first completed zero-point day becomes Rest. After six scoring days, the seventh is Rest.';
   } else {
-    status.textContent = 'No rest allowance for a partial starting week. Eligibility begins with your first points, or Rest on October 1, 8, 15, or 22.';
+    status.textContent = participants.some(member => member.uid === ownedUid && member.returning)
+      ? 'No rest allowance for a partial starting week. Your next rest allowance begins with the next full challenge week.'
+      : `No rest allowance for a partial starting week. Eligibility begins with your first points, or Rest on ${MONTH_NAME} 1, 8, 15, or 22.`;
   }
   const end = Math.min(week.end, DAYS_IN_MONTH);
-  document.getElementById('weekScheduleTitle').textContent = `Double points: October ${week.start}–${end}`;
+  document.getElementById('weekScheduleTitle').textContent = `Double points: ${MONTH_NAME} ${week.start}–${end}`;
   const list = document.getElementById('weekSchedule');
   list.replaceChildren();
   for (let date = week.start; date <= end; date++) {
@@ -711,7 +1042,7 @@ function renderRestSchedule() {
     const isToday = isInChallengeMonth() && date === day;
     if (isToday) item.setAttribute('aria-current', 'date');
     const activity = getActivity(DOUBLE_ACTIVITY_SCHEDULE[date - 1]);
-    item.textContent = `Oct ${date}${isToday ? ' · Today' : ''} — ${activity.name}${week.restDay === date ? ' · Rest' : ''}`;
+    item.textContent = `${MONTH_NAME.slice(0,3)} ${date}${isToday ? ' · Today' : ''} — ${activity.name}${week.restDay === date ? ' · Rest' : ''}`;
     list.appendChild(item);
   }
 }
@@ -921,11 +1252,11 @@ async function setOwnedEntry(dateKey, entry) {
   pendingOwnedSaves += 1;
   render();
   try {
-    await saveOwnedRecord();
+    await saveOwnedRecord(dateKey);
     return true;
   } catch (error) {
     showToast(error.message || 'Save failed. Check your connection.');
-    await fetchAll();
+    await fetchAll(true);
   } finally {
     pendingOwnedSaves = Math.max(0, pendingOwnedSaves - 1);
     render();
@@ -933,7 +1264,7 @@ async function setOwnedEntry(dateKey, entry) {
 }
 
 function celebrateGoalReached() {
-  if (goalCelebratedThisVisit) return;
+  if (document.visibilityState === 'hidden' || goalCelebratedThisVisit) return;
   goalCelebratedThisVisit = true;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
@@ -1109,7 +1440,14 @@ function renderParticipationList() {
 
 function computeTeamTotalForDate(date) {
   const dateKey = formatDateKey(date);
-  return participants.reduce((total, participant) => total + computePlayerTotalsForDate(participant.uid, dateKey) + cheerBonus(participant.uid, dateKey), 0);
+  return participants.reduce((total, participant) => total + computePlayerTotalsForDate(participant.uid, dateKey) + cheerBonus(participant.uid, dateKey), 0)
+    + privateTeamBonusAdjustment(key => key === dateKey);
+}
+
+function privateTeamBonusAdjustment(include = () => true) {
+  if (TEST_MODE || MONTH_KEY === '2026-10') return 0;
+  return Object.entries(teamCheerTotals).reduce((total,[key,value]) => total + (include(key) && key <= actualTodayKey() ? value : 0),0)
+    - Object.keys(cheerSchedule).reduce((total,key) => total + (include(key) ? cheerBonus(ownedUid,key) : 0),0);
 }
 
 function computePlayerTotalsForDate(uid, dateKey) {
@@ -1187,6 +1525,15 @@ function actualTodayKey() {
 
 function getParticipationStartDay(uid) {
   const today = actualTodayKey();
+  const member = participants.find(item => item.uid === uid);
+  if (MONTH_KEY !== '2026-10' && member?.returning === true && isChallengeDateKey(member.startDate)) {
+    return Number(member.startDate.slice(-2));
+  }
+  if (MONTH_KEY !== '2026-10' && member?.returning === true && Number.isFinite(member.joinedAt)) {
+    const joined = getChallengeDateParts(new Date(member.joinedAt));
+    const key = formatDateKey(dateFromChallengeParts(joined.year,joined.month,joined.day));
+    return key < challengeKey(1) ? 1 : Number(key.slice(-2));
+  }
   const first = Object.keys(entriesByUid[uid] || {}).sort().find(key => {
     if (!isChallengeDateKey(key) || key > today) return false;
     const day = Number(key.slice(-2));
@@ -1227,6 +1574,7 @@ function isRestDay(uid, dateKey) {
 
 function canChooseRestToday() {
   if (!ownedUid || !isInChallengeMonth() || pendingOwnedSaves) return false;
+  if (MONTH_KEY !== '2026-10' && !participants.some(member => member.uid === ownedUid)) return false;
   const day = getCurrentDate().getUTCDate();
   const week = getRestWeek(ownedUid, day);
   const canStart = getParticipationStartDay(ownedUid) === null && [1, 8, 15, 22].includes(day);
@@ -1255,7 +1603,7 @@ function computeTeamGoalThroughDay(lastDay) {
 }
 
 function computeMonthTotal() {
-  return participants.reduce((total, participant) => total + computePlayerMonthTotal(participant.uid), 0);
+  return participants.reduce((total, participant) => total + computePlayerMonthTotal(participant.uid), 0) + privateTeamBonusAdjustment();
 }
 
 function computeMonthTotalBeforeDate(dateKeyLimit) {
@@ -1265,7 +1613,7 @@ function computeMonthTotalBeforeDate(dateKeyLimit) {
       if (!isChallengeDateKey(dateKey) || dateKey >= dateKeyLimit) return sum;
       return sum + computePlayerTotalsForDate(participant.uid, dateKey) + cheerBonus(participant.uid, dateKey);
     }, 0);
-  }, 0);
+  }, 0) + privateTeamBonusAdjustment(key => key < dateKeyLimit);
 }
 
 function getYesterdayPaceMessage(completedDays, delta) {
@@ -1289,7 +1637,7 @@ function getActivity(activityId) {
 }
 
 function getParticipantName(uid) {
-  return participants.find((participant) => participant.uid === uid)?.name || 'Challenge member';
+  return participants.find((participant) => participant.uid === uid)?.name || returningMembers.find(member => member.uid === uid)?.name || 'Challenge member';
 }
 
 function getCurrentDate() {
@@ -1320,6 +1668,7 @@ function isInChallengeMonth() {
 }
 
 function canLogToday() {
+  if (MONTH_KEY !== '2026-10' && !participants.some(member => member.uid === ownedUid)) return false;
   return !!ownedUid && isInChallengeMonth() && !pendingOwnedSaves &&
     !isRestDay(ownedUid, formatDateKey(getCurrentDate()));
 }
@@ -1349,7 +1698,8 @@ function formatDateKey(date) {
 }
 
 function isChallengeDateKey(dateKey) {
-  return /^2026-10-(0[1-9]|[12][0-9]|3[01])$/.test(dateKey);
+  return typeof dateKey === 'string' && dateKey.startsWith(`${MONTH_KEY}-`) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(dateKey) && Number(dateKey.slice(-2)) >= 1 && Number(dateKey.slice(-2)) <= DAYS_IN_MONTH;
 }
 
 function getDoubleActivityId(date) {
@@ -1357,7 +1707,7 @@ function getDoubleActivityId(date) {
   return DOUBLE_ACTIVITY_SCHEDULE[dayNumber - 1] || ACTIVITY_DEFS[(dayNumber - 1) % ACTIVITY_DEFS.length].id;
 }
 
-function getChallengeDateParts(date = new Date()) {
+function getChallengeDateParts(date = new Date(previewNow || (Date.now() + serverTimeOffset))) {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: CHALLENGE_TIME_ZONE,
     year: 'numeric',

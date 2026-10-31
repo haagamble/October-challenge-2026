@@ -1,0 +1,10 @@
+{
+  "name": "group-fit-challenge",
+  "private": true,
+  "scripts": {
+    "preview": "node preview.cjs",
+    "test": "node verify-all.cjs",
+    "test:emulator": "node run-emulator.cjs"
+  },
+  "devDependencies": { "firebase-tools": "^14.0.0" }
+}

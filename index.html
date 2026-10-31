@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="app-version" content="22">
+  <meta name="app-version" content="24">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#245f49">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Oct 2026 Fit">
+  <meta name="apple-mobile-web-app-title" content="Group Fit">
   <title>October 2026 Group Challenge</title>
-  <link rel="manifest" href="manifest.webmanifest?v=oct2026-22">
+  <link rel="manifest" href="manifest.webmanifest?v=oct2026-24">
   <link rel="icon" href="icons/icon-32.png?v=purple1" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=purple1">
-  <link rel="stylesheet" href="group-challenge.css?v=oct2026-22">
+  <link rel="stylesheet" href="group-challenge.css?v=oct2026-24">
 </head>
 <body>
   <div class="app-shell">
@@ -23,14 +23,45 @@
       </div>
     </header>
 
+    <div class="card panel">
+      <div id="testMonthPicker" class="hidden">
+      <label for="challengeMonth">Challenge month</label>
+      <select id="challengeMonth">
+        <option value="2026-10">October 2026</option>
+        <option value="2026-11">November 2026</option>
+      </select>
+      </div>
+      <button id="pastChallengesButton" class="btn" type="button" aria-expanded="false" aria-controls="pastChallengesList">Past challenges</button>
+      <div id="pastChallengesList" class="hidden"></div>
+      <button id="currentChallengeButton" class="btn primary hidden" type="button">Back to current challenge</button>
+      <p id="monthViewNotice" role="status"></p>
+      <p id="previewClock"></p>
+    </div>
+
+    <section id="nextChallengeCard" class="card panel hidden">
+      <h2>Next month's challenge</h2>
+      <p>You can opt into November now. Your participation will start November 1, Pacific time.</p>
+      <button id="nextChallengeButton" class="btn primary" type="button">Join November</button>
+    </section>
+
     <div id="testBanner" class="test-banner hidden">
       <span><strong>Test mode</strong> - changes stay in this browser.</span>
       <button class="btn" id="resetTestButton" type="button">Reset test data</button>
     </div>
 
+    <div id="monthJoinBox" class="join-box hidden">
+      <h2>Your next challenge</h2>
+      <p id="monthJoinMessage"></p>
+      <label><input id="returningCheerOptIn" type="checkbox" checked> Include me in the cheerleader rotation</label>
+      <p>You can uncheck this and still join the fitness challenge. The rotation closes at the end of November 1, Pacific time.</p>
+      <button id="monthJoinButton" class="btn primary" type="button">Join November</button>
+    </div>
+
     <div id="joinBox" class="join-box hidden">
       <h2>Join the challenge</h2>
       <p id="joinInstructions">Enter your first name to join the group and track today's points.</p>
+      <label id="newCheerOptInLabel"><input id="newCheerOptIn" type="checkbox" checked> Include me in the cheerleader rotation</label>
+      <p id="newCheerOptInNote">Optional. Join by the end of November 1, Pacific time, to be included.</p>
       <div class="join-row">
         <input id="joinName" type="text" maxlength="30" placeholder="First name">
         <button id="joinButton" class="btn primary" type="button">Join</button>
@@ -43,6 +74,15 @@
 
     <div id="nameGrid" class="name-grid hidden"></div>
     <div id="identityNote" class="identity-note hidden"></div>
+
+    <section id="automaticCheerPanel" class="card panel hidden" aria-labelledby="automaticCheerTitle">
+      <h2 id="automaticCheerTitle">Your cheerleader dates</h2>
+      <p id="automaticCheerStatus" role="status"></p>
+      <details>
+        <summary>View your assigned dates</summary>
+        <div id="automaticCheerList"></div>
+      </details>
+    </section>
 
     <main id="challengeContent" class="hidden">
       <p id="cheerleaderNotice" class="card-note hidden" role="status">Cheerleader updates are unavailable. Bonus totals may be out of date. Please refresh when connected.</p>
@@ -201,8 +241,9 @@
           <p>Select <strong>Rest today</strong> on the day you want to rest. You cannot choose a future date, but you can preview this week's double-points activities to plan ahead. Rest earns zero points and activity logging is disabled for that day. You can still exercise, but it will not earn challenge points. A Rest selection lasts for the day. If you already logged points, clear today's activity values before choosing Rest.</p>
           <p>If you have not used your rest day, the first completed day with zero points automatically becomes Rest, after midnight Pacific time. Today stays open for evening logging. If you score on the first six days, the seventh automatically becomes Rest. Further missed days do not become extra rest days, and allowances do not carry over. Days participated includes today: positive activity points or a valid rest day count as participation. A cheerleader bonus alone does not count.</p>
           <h3>When am I eligible, and how does Rest affect the goal?</h3>
-          <p>Participation starts with your first positive points, not simply joining. You receive a rest day only if you started by the opening day of that week. For example, first scoring on October 3 means no rest allowance for October 3-7; your next allowance begins October 8.</p>
-          <p>You may also start by selecting Rest on October 1, 8, 15, or 22. This uses that week's rest day and begins your participation without requiring points first. Merely joining and missing days does not start participation or assign Rest.</p>
+          <p id="returningMemberHelp" class="hidden">Returning participants must opt into each new month. Joining on or before the first day starts participation on day 1; joining later starts participation that Pacific day. Your goal starts immediately without needing points. New participants start with their first positive points or an eligible opening-day Rest selection.</p>
+          <p>For new participants, participation starts with your first positive points, not simply joining. You receive a rest day only if you started by the opening day of that week. For example, first scoring on October 3 means no rest allowance for October 3-7; your next allowance begins October 8.</p>
+          <p>New participants may also start by selecting Rest on October 1, 8, 15, or 22. This uses that week's rest day and begins participation without requiring points first. For new participants, merely joining and missing days does not start participation or assign Rest.</p>
           <p>The goal is 250 points per scoring day from your start through October 31. Each eligible full week contributes 1,500 points, with its rest allowance built in immediately. Starting October 1 contributes 6,750 points; starting October 3 contributes 6,500. Additional missed days still count toward the goal. Daily team pace excludes assigned rest days; until you use an allowance, it is reserved for that week's final day. People can see Rest status and team totals, but not each person's daily score.</p>
           <p>Challenge days follow Pacific time. The 400 club celebrates people who reached the daily max yesterday.</p>
           <p>Push ups may be wall pushups, knee pushups, or full pushups. Sit ups may be full sit ups or crunches. Stairs can be up and/or down. One bird dog rep means a right-left pair. Dancing may be ballet, breakdancing, kitchen dancing, or any movement you are prepared to defend as rhythmic.</p>
@@ -227,8 +268,8 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="firebase-config.js?v=oct2026-22"></script>
-  <script src="cheerleader.js?v=oct2026-22"></script>
-  <script src="group-challenge.js?v=oct2026-22"></script>
+  <script src="firebase-config.js?v=oct2026-24"></script>
+  <script src="cheerleader.js?v=oct2026-24"></script>
+  <script src="group-challenge.js?v=oct2026-24"></script>
 </body>
 </html>

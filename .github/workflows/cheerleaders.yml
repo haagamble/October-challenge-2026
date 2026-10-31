@@ -1,0 +1,50 @@
+name: Monthly cheerleaders
+on:
+  schedule:
+    # November 2 at 00:17 Pacific in 2026, with retries on days 3–7.
+    - cron: '17 8 2-7 11 *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Check access, open November joining, or generate after the cutoff'
+        type: choice
+        options: [check, initialize, generate]
+        default: check
+permissions:
+  contents: read
+concurrency:
+  group: november-cheerleaders
+  cancel-in-progress: false
+jobs:
+  schedule:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run local checks before authenticating
+        run: node verify-all.cjs
+      - uses: google-github-actions/auth@v3
+        id: auth
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SCHEDULER_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 300s
+          access_token_scopes: https://www.googleapis.com/auth/firebase.database,https://www.googleapis.com/auth/userinfo.email
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Run scheduling job
+        env:
+          FIREBASE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          FIREBASE_DATABASE_URL: https://october-challenge-2026-default-rtdb.firebaseio.com/
+          SCHEDULE_MODE: ${{ github.event.inputs.mode || 'generate' }}
+        run: node schedule-cheerleaders.cjs

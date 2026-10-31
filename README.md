@@ -1,6 +1,97 @@
-# October 2026 Group Challenge
+# Group Fit
 
-A reusable small-group fitness challenge app for a 31-day October 2026 challenge. Participants
+## Monthly challenges and safe local testing
+
+For account configuration and launch steps, see [SETUP-NOVEMBER.md](SETUP-NOVEMBER.md).
+
+Normal navigation opens the current Pacific month and offers **Past challenges**
+for completed months, newest first. History provides **Back to current challenge**.
+The month dropdown is test-only. Add `&nav=1` to a dated local preview URL to hide
+that dropdown and try normal navigation while still using isolated browser data.
+October's screen offers a **Join November** link to the November opt-in screen
+before November starts. Navigation protects unsaved input and retains preview time.
+
+November uses the existing Firebase Spark project directly. GitHub Actions generates the private cheerleader schedule using temporary OIDC credentials; no Cloud Functions or billing upgrade is part of the implementation. Account-side OIDC setup and deployment are still to be performed by the owner. October paths and the existing authentication key are preserved. Rules close October only at midnight Pacific starting November 1.
+
+Run `node preview.cjs`, then open:
+
+- October's last day: <http://127.0.0.1:4173/?now=2026-10-31T19:00:00Z>
+- November's first day: <http://127.0.0.1:4173/?now=2026-11-01T20:00:00Z>
+- October history in November: <http://127.0.0.1:4173/?month=2026-10&now=2026-11-02T20:00:00Z>
+
+All localhost/file previews automatically use browser storage, even without
+`test=1`. The preview server supplies an empty Firebase configuration and serves
+only app assets, excluding database exports. Each month has separate test data.
+Use the existing test participant picker to try multiple people. Test joining
+uses the first-points behavior for new people. Returning test members from October
+are offered a separate Join November button. A simulated `now`
+is frozen until the URL changes; omit it to use the real Pacific date. The month
+selector preserves the simulated time. November repeats October's first 30
+double-points activities, as agreed.
+
+Run `node verify-months.cjs` for month boundaries (including Pacific daylight
+saving time), storage isolation, preview network protection, and read-only guards.
+
+### Testing returning participants
+
+1. Open the October 31 preview above and create a test participant. Use the same
+   browser and the same hostname (`127.0.0.1`) for every preview.
+2. Open the November 1 preview. If a different test identity is selected, click
+   your October participant's name in the test picker and confirm the switch.
+3. Press **Join November**. The same identity is reused, no entries are copied,
+   and the full November goal starts immediately (6,500 points per day-1 starter).
+4. Leave November 1 empty, then open
+   <http://127.0.0.1:4173/?now=2026-11-02T20:00:00Z>. November 1 should appear as
+   that person's automatic rest day in history.
+5. To try a late join, create another October test member, then open
+   <http://127.0.0.1:4173/?now=2026-11-10T20:00:00Z>. Select that member and join.
+   Their participation starts November 10, with no rest allowance for November 8–14.
+
+Returning members can opt in before November by selecting November while the
+simulated date is still October. Logging stays disabled until November begins.
+Reset test data clears only the selected month's test data; October is preserved
+when resetting November. Membership joining timestamps are simulated locally;
+live joining uses immutable Firebase server timestamps and owner/date security rules.
+Run `node verify-month-joining.cjs` to check this flow automatically.
+
+### Testing automatic cheerleaders
+
+Join a few differently named participants in the November 1 preview, then open
+<http://127.0.0.1:4173/?now=2026-11-02T20:00:00Z>. The first visit after Pacific
+November 1 ends generates the November 2–30 schedule. Expand **View your assigned dates**
+to inspect your own assigned dates. Members need a saved joining timestamp, but do not need activity
+points to qualify. Test members created before timestamps were added should be
+recreated using Reset test data in November before this test.
+
+November 1 displays **Everyone cheers today!** with no assigned individual or
+individual cheerleader bonus. Later joiners are excluded from the fixed schedule.
+No eligible members produces a saved empty schedule. Reset November test data
+also resets its schedule. Returning to the app, reconnecting, and polling check
+for the schedule; Pacific date rollover refreshes the page when edits are saved.
+
+Local scheduling uses a browser Web Lock when available and a reproducible
+shuffled rotation. The result is stored separately from mutable scores/claims,
+so later saves cannot erase it. This tests shared tabs in one browser only;
+the live version uses the scheduled GitHub job and a Firebase ETag to save exactly once.
+Run `node verify-auto-cheer.cjs` for cutoff, fairness, persistence, concurrency,
+empty-roster, and delayed-first-visit checks.
+
+Both new and returning November joining forms include a checked **Include me in
+the cheerleader rotation** checkbox. Unchecking it opts out without changing
+fitness participation or goals. The choice is saved at joining; the current
+preview does not offer post-join preference editing. Existing test members with
+no saved preference remain opted in. Reset November test data to retest choices
+and generation together; an already frozen schedule is never reshuffled.
+
+The schedule panel displays only the current identity's dates, without names or
+other people's assignments. Test mode intentionally permits switching identities
+for verification. Live database rules restrict private assignment reads to the matching Firebase UID. Local test mode intentionally permits identity switching and is not a security boundary.
+
+## Original October scoring and installation reference
+
+The sections below retain the October setup notes. For the current November launch use SETUP-NOVEMBER.md.
+
+A small-group fitness challenge app originally built for October 2026. Participants
 choose 3 activities each day, log progress toward 100 points per activity, and
 work together toward a shared team goal.
 
