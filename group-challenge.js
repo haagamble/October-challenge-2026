@@ -210,6 +210,8 @@ function cacheElements() {
   els.goalText = document.getElementById('goalText');
   els.goalBar = document.getElementById('goalBar');
   els.goalMessage = document.getElementById('goalMessage');
+  els.goalCelebration = document.getElementById('goalCelebration');
+  els.goalCelebrationMessage = document.getElementById('goalCelebrationMessage');
   els.goalYesterday = document.getElementById('goalYesterday');
   els.goalTodayTarget = document.getElementById('goalTodayTarget');
   els.activityGrid = document.getElementById('activityGrid');
@@ -900,6 +902,12 @@ function renderGoalMeta() {
   const yesterdayDelta = yesterdayTotal - yesterdayPaceTarget;
   const challengeEnded = completedDays >= DAYS_IN_MONTH;
   const goalReached = goalTotal > 0 && monthTotal >= goalTotal;
+  const showCongratulations = goalReached && !isBeforeChallenge() && loadState === 'ready' && cheerReady;
+  els.goalCelebration?.classList.toggle('hidden', !showCongratulations);
+  if (els.goalCelebrationMessage) {
+    const message = showCongratulations ? `We reached our ${MONTH_NAME} goal of ${formatNumber(goalTotal)} points! We did it together!` : '';
+    if (els.goalCelebrationMessage.textContent !== message) els.goalCelebrationMessage.textContent = message;
+  }
   const todayTeamGoal = Math.max(0, computeTeamGoalThroughDay(daysElapsed) - yesterdayPaceTarget);
   // Goal contributions are 250 per scoring day. Subtract completed-day
   // contributions to exclude past days and preserve each person's rest allowance.
