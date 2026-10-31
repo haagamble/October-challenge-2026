@@ -84,8 +84,8 @@ project `demo-group-fit` on loopback ports; never your production database.
 
 Use `node preview.cjs` and the test URLs in README to review November. Test a new
 participant, a returning participant, opt-out, and private dates. When ready,
-commit and push using your normal GitHub Pages publishing process. Version 25
-and cache v25 deliver the update to existing installations. This repository's
+commit and push using your normal GitHub Pages publishing process. Version 26
+and cache v26 deliver the update to existing installations. This repository's
 website address must stay the same.
 
 The first published version still opens October until the Pacific boundary.

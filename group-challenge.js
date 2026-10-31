@@ -97,6 +97,7 @@ function setupChallengeNavigation() {
   const pastButton = document.getElementById('pastChallengesButton');
   const list = document.getElementById('pastChallengesList');
   const past = pastChallengeKeys();
+  document.getElementById('challengeNavigation').classList.toggle('hidden', !TEST_MODE && past.length === 0 && MONTH_KEY === currentMonthKey);
   pastButton.classList.toggle('hidden', past.length === 0);
   pastButton.addEventListener('click', () => {
     const expanded = pastButton.getAttribute('aria-expanded') !== 'true';
