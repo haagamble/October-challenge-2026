@@ -10,7 +10,6 @@ const DAYS_IN_MONTH = 31;
 const DAILY_PERSON_GOAL = 250;
 const TEST_STORAGE_KEY = 'october-2026-group-challenge-test-data';
 const TEST_IDENTITY_STORAGE_KEY = 'october-2026-group-challenge-test-player';
-const GOAL_CELEBRATION_KEY = 'october-2026-group-challenge-2026-goal-celebrated';
 const AUTH_STORAGE_KEY = `october-2026-group-challenge-firebase-auth:${DB_URL}`;
 const INSTALL_DISMISSED_KEY = 'october-2026-group-challenge-install-dismissed';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -50,6 +49,7 @@ let joinOpen = false;
 let loadState = 'loading';
 let installPrompt = null;
 let pendingOwnedSaves = 0;
+let goalCelebratedThisVisit = false;
 const unsavedActivityInputs = new Set();
 
 const els = {};
@@ -390,7 +390,7 @@ function resetTestData() {
   if (!TEST_MODE) return;
   localStorage.removeItem(TEST_STORAGE_KEY);
   localStorage.removeItem(TEST_IDENTITY_STORAGE_KEY);
-  localStorage.removeItem(`${GOAL_CELEBRATION_KEY}-test`);
+  goalCelebratedThisVisit = false;
   participants = [];
   entriesByUid = {};
   ownedUid = null;
@@ -933,9 +933,8 @@ async function setOwnedEntry(dateKey, entry) {
 }
 
 function celebrateGoalReached() {
-  const storageKey = TEST_MODE ? `${GOAL_CELEBRATION_KEY}-test` : GOAL_CELEBRATION_KEY;
-  if (localStorage.getItem(storageKey) === 'true') return;
-  localStorage.setItem(storageKey, 'true');
+  if (goalCelebratedThisVisit) return;
+  goalCelebratedThisVisit = true;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const colors = ['#23674f', '#e77c50', '#e5b943', '#4f8da8', '#ca5360'];

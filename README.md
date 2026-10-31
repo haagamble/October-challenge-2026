@@ -172,7 +172,7 @@ All files in this folder, including `firebase-config.js`,
 - October validates October 1-31, 2026. Day 31 doubles walking; Strength uses October 5, 12, and 28. Other is never doubled. Goals remain 250
   points per scoring day, with one required rest per eligible full week.
   Starting October 9 adds 5,250; October 11 adds 4,750.
-- October has independent auth, test, install-dismissal, and celebration keys.
+- October has independent auth, test, and install-dismissal keys. After the group goal is reached, confetti celebrates once per page load (unless reduced motion is enabled).
 - October's worker cleans up only its own cache namespace and uses only its
   own shell cache. Test mode unregisters only the worker at October's scope.
 - September's unchanged worker deletes other caches on its origin at activation.
