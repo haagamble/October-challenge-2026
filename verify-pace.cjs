@@ -1,5 +1,5 @@
 ﻿const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
-const ctx=vm.createContext({assert,window:{location:{search:'?test=1'}},localStorage:{getItem:()=>null},URLSearchParams,Date,Intl});
+const ctx=vm.createContext({assert,window:{location:{search:'?test=1&month=2026-10'}},localStorage:{getItem:()=>null},URLSearchParams,Date,Intl});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'group-challenge.js'),'utf8').replace(/init\(\);\s*$/,'')+'\n'+fs.readFileSync(path.join(__dirname,'cheerleader.js'),'utf8'),ctx);
 vm.runInContext(`
  let day=1;getChallengeDateParts=()=>({year:2026,month:10,day});

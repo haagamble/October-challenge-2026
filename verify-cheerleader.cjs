@@ -3,7 +3,7 @@ const {assignment,makeSchedule}=require('./make-cheerleader-schedule.cjs');
 const source=fs.readFileSync(path.join(__dirname,'group-challenge.js'),'utf8').replace(/init\(\);\s*$/,'')+'\n'+fs.readFileSync(path.join(__dirname,'cheerleader.js'),'utf8');
 const nodes=new Map(),storage=new Map();
 const document={getElementById(id){if(!nodes.has(id)) nodes.set(id,{classList:{toggle(){}},textContent:''});return nodes.get(id);}};
-const c=vm.createContext({assert,document,window:{location:{search:'?test=1'}},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},URLSearchParams,URL,Intl,Date});vm.runInContext(source,c);
+const c=vm.createContext({assert,document,window:{location:{search:'?test=1&month=2026-10'}},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},URLSearchParams,URL,Intl,Date});vm.runInContext(source,c);
 const run=code=>vm.runInContext(code,c);
 (async()=>{
  await run(`(async()=>{
@@ -41,7 +41,7 @@ const run=code=>vm.runInContext(code,c);
    cheerSchedule['2026-10-01']={uid:'b'};assert.equal(cheerBonus('a','2026-10-01'),0);
    cheerReady=false;assert.equal(canUpdateCheerleader('2026-10-03'),false);
  })()`);
- const live=vm.createContext({assert,document,window:{location:{search:''}},localStorage:{getItem:()=>null},URLSearchParams,URL,Intl,Date});vm.runInContext(source,live);
+ const live=vm.createContext({assert,document,window:{location:{search:'?month=2026-10'}},localStorage:{getItem:()=>null},URLSearchParams,URL,Intl,Date});vm.runInContext(source,live);
  await vm.runInContext(`(async()=>{
    getChallengeDateParts=()=>({year:2026,month:10,day:1});ownedUid='a';cheerReady=true;
    cheerSchedule={'2026-10-01':{uid:'a'}};render=()=>{};showToast=()=>{};

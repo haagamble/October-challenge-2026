@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const root = __dirname;
 const source = fs.readFileSync(path.join(root, 'group-challenge.js'), 'utf8').replace(/init\(\);\s*$/, '') + '\n' + fs.readFileSync(path.join(__dirname, 'cheerleader.js'), 'utf8');
-const context = vm.createContext({window:{location:{search:'?test=1', href:'https://example.test/Oct-group-challenge-2026/', hostname:'example.test'}},localStorage:{getItem:()=>null}, URLSearchParams, URL, Intl, Date});
+const context = vm.createContext({window:{location:{search:'?test=1&month=2026-10', href:'https://example.test/Oct-group-challenge-2026/', hostname:'example.test'}},localStorage:{getItem:()=>null}, URLSearchParams, URL, Intl, Date});
 vm.runInContext(source, context);
 vm.runInContext(`
   if (CHALLENGE_YEAR !== 2026 || CHALLENGE_MONTH !== 9 || DAYS_IN_MONTH !== 31) throw Error('Month');

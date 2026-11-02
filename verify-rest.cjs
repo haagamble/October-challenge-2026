@@ -11,7 +11,7 @@ function element() {
 }
 const document = {createElement: element, getElementById(id) { if(!nodes.has(id)) nodes.set(id,element()); return nodes.get(id); }};
 const storage = new Map();
-const context = vm.createContext({assert, document, window:{location:{search:'?test=1',href:'https://example.test/October/',hostname:'example.test'}},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},URLSearchParams,URL,Intl,Date});
+const context = vm.createContext({assert, document, window:{location:{search:'?test=1&month=2026-10',href:'https://example.test/October/',hostname:'example.test'}},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},URLSearchParams,URL,Intl,Date});
 vm.runInContext(source,context);
 const run = code => vm.runInContext(code,context);
 run(`
@@ -176,7 +176,7 @@ run(`
    await updatePullupType('full'); assert.equal(entriesByUid.a['2026-10-08'].pullupType,undefined);
    assert.equal(sanitizeEntries({'2026-10-08':{rest:true,pullupType:'modified'}})['2026-10-08'].pullupType,undefined);
  })()`);
- const live = vm.createContext({assert, window:{location:{search:''}}, localStorage:{getItem:()=>null},URLSearchParams,URL,Intl,Date});
+ const live = vm.createContext({assert, window:{location:{search:'?month=2026-10'}}, localStorage:{getItem:()=>null},URLSearchParams,URL,Intl,Date});
  vm.runInContext(source,live);
  await vm.runInContext(`(async()=>{
    getChallengeDateParts=()=>({year:2026,month:10,day:1});

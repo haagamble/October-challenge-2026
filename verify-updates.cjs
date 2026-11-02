@@ -16,7 +16,7 @@ async function main() {
     document, navigator, URL, URLSearchParams,
     localStorage: { getItem: () => null },
     window: {
-      location: { search: '', protocol: 'https:', href: 'https://example.test/October-challenge-2026/?join=oct26', reload: () => reloads++ },
+      location: { search: '?month=2026-10', protocol: 'https:', href: 'https://example.test/October-challenge-2026/?join=oct26', reload: () => reloads++ },
       addEventListener: (name, fn) => { events[name] = fn; },
       setInterval: (fn, ms) => timers.push({ fn, ms })
     },
