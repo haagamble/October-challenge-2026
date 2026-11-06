@@ -1,6 +1,7 @@
 // Generate the verbose Pacific-date checks; retain October's existing schema.
 const fs = require('node:fs');
 const {getConfig,pacificMidnight} = require('./challenge-config.cjs');
+const {pointsRule} = require('./club400.cjs');
 function buildRules(source) {
   const result = structuredClone(source);
   const rules = result.rules;
@@ -47,6 +48,18 @@ function buildRules(source) {
     '.write':`auth != null && newData.exists() && ${ownAssignment}.child('uid').val() === auth.uid && now >= ${ownAssignment}.child('startAt').val() && now < ${ownAssignment}.child('endAt').val()`,
     '.validate':`newData.isNumber() && newData.val() === (${newClaim} === 'claimed' ? 100 : 0)`
   }};
+  const clubRoot='newData.parent().parent().parent()';
+  const entryRoot='newData.parent().parent().parent().parent()';
+  const claimRoot='newData.parent().parent().parent().parent().parent()';
+  const qualifies=root=>`${root}.child('${config.privatePath}/users').child($uid).child('claims').child($date).child('status').val() === 'claimed' && ${root}.child('${config.privatePath}/users').child($uid).child('dates').child($date).child('uid').val() === $uid && ${root}.child('${config.roster}').child($uid).child('entries').child($date).child('rest').val() !== true && (${pointsRule(root)}) >= 300`;
+  const club=root=>`${root}.child('club400November2026').child($date).child($uid)`;
+  rules.club400November2026={'.read':'auth != null','$date':{'$uid':{
+    '.write':'auth != null && auth.uid === $uid',
+    '.validate':`newData.isBoolean() && newData.val() === true && (${qualifies(clubRoot)})`
+  }}};
+  entries.$date['.write']+=` && (newData.exists() || !${club(entryRoot)}.exists())`;
+  entries.$date['.validate']+=` && (!${club(entryRoot)}.exists() || (${qualifies(entryRoot)}))`;
+  claim['.validate']+=` && (!${club(claimRoot)}.exists() || (${qualifies(claimRoot)}))`;
   return result;
 }
 module.exports = {buildRules};

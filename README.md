@@ -1,5 +1,11 @@
 # Group Fit
 
+The 400 Club counts activity points plus a claimed cheerleader bonus. For example,
+300 activity points plus a 100-point bonus qualifies; an unclaimed bonus does not.
+November shares only a verified club-qualification flag, not private assignments
+or Pass decisions. Entry edits and bonus undo remove qualification atomically.
+See SETUP-NOVEMBER.md for the rules-first update and completed-day update steps.
+
 ## Monthly challenges and safe local testing
 
 For account configuration and launch steps, see [SETUP-NOVEMBER.md](SETUP-NOVEMBER.md).
@@ -337,7 +343,7 @@ A missing assignment shows no card. Failed schedule/claim reads show a notice an
 disable claims, while retaining previously loaded bonuses. Passing leaves the
 day unassigned to anyone else. Accept can reverse a pass on the same day.
 Bonuses count in personal/team totals and daily history, not activity averages,
-the goal, the 400 Club, participation starts, or rest-day eligibility. The daily
+the goal, participation starts, or rest-day eligibility. The 400 Club includes claimed bonuses. The daily
 team statistics total includes bonuses; its logged-person count remains activity-only.
 
 Run node verify-cheerleader.cjs for local behavior and rule-expression checks.

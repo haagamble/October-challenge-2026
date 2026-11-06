@@ -62,8 +62,16 @@ async function main(){
   await denied(path,{token:owner.idToken,method:'PUT',value:{uid,status:'accepted'}});
   await allowed('',{token:owner.idToken,method:'PATCH',value:update('accepted')});
   await allowed('',{token:owner.idToken,method:'PATCH',value:update('claimed')});
+  if(uid===b.localId)await allowed(`${c.roster}/${uid}`,{admin:true,method:'PUT',value:{name:'Beth',nameKey:'beth',returning:true,cheerOptIn:true,joinedAt:c.startAt}});
+  const club=`club400November2026/2026-11-02/${uid}`,activityPath=`${c.roster}/${uid}/entries/2026-11-02`;
+  const threeHundred={selected:['pushups','squats','situps'],values:{pushups:50,squats:100,situps:100}};
+  await denied(club,{token:owner.idToken,method:'PUT',value:true});
+  await allowed('',{token:owner.idToken,method:'PATCH',value:{[activityPath]:threeHundred,[club]:true}});
+  assert.equal(await allowed(club,{token:other.idToken}),true);
+  await denied(activityPath,{token:owner.idToken,method:'PUT',value:{...threeHundred,values:{pushups:49,squats:100,situps:100}}});
   await denied(bonus,{token:owner.idToken,method:'PUT',value:0});
-  await allowed('',{token:owner.idToken,method:'PATCH',value:update('accepted')});
+  await denied('',{token:owner.idToken,method:'PATCH',value:update('accepted')});
+  await allowed('',{token:owner.idToken,method:'PATCH',value:{...update('accepted'),[club]:null}});
   assert.equal(await allowed(bonus,{token:other.idToken}),0);
   assert.deepEqual(await allowed('groupChallengeOctober2026',{admin:true}),seed.groupChallengeOctober2026);
   console.log('PASS: actual Firebase emulator compiles rules and verifies server timestamps, names, owner/date limits, private assignments, atomic claim totals, and October boundary/isolation.');

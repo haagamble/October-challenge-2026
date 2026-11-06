@@ -132,7 +132,8 @@ async function updateCheerleader(status) {
     if (!TEST_MODE && MONTH_KEY !== '2026-10') {
       const updates = {
         [`cheerleaderPrivateNovember2026/users/${ownedUid}/claims/${dateKey}`]:claim,
-        [`cheerleaderBonusNovember2026/${dateKey}`]:status === 'claimed' ? 100 : 0
+        [`cheerleaderBonusNovember2026/${dateKey}`]:status === 'claimed' ? 100 : 0,
+        [`club400November2026/${dateKey}/${ownedUid}`]:status === 'claimed' && computePlayerTotalsForDate(ownedUid,dateKey)>=300 ? true : null
       };
       const response = await firebaseRequest('',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)});
       if (!response.ok) throw new Error('Could not save your cheerleader update. Please refresh and try again.');

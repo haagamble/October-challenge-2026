@@ -43,10 +43,18 @@ async function main(){
   write({[claimPath]:claim('claimed'),[bonusPath]:100},uid,c.cutoff,false);
   write({[claimPath]:claim('accepted'),[bonusPath]:0},uid,c.cutoff);
   write({[claimPath]:claim('claimed'),[bonusPath]:100},uid,c.cutoff);
+  const clubPath=`club400November2026/2026-11-02/${uid}`;
+  const activityPath=`${c.roster}/${uid}/entries/2026-11-02`;
+  const threeHundred={selected:['pushups','squats','situps'],values:{pushups:50,squats:100,situps:100}};
+  write({[clubPath]:true},uid,c.cutoff,false);
+  write({[activityPath]:threeHundred,[clubPath]:true},uid,c.cutoff);
+  write({[activityPath]:{...threeHundred,values:{pushups:49,squats:100,situps:100}}},uid,c.cutoff,false);
+  assert.equal(canRead(tree,clubPath,'spectator'),true);
   write({[bonusPath]:0},uid,c.cutoff,false);
   write({[claimPath]:claim('claimed'),[bonusPath]:100},uid,c.cutoff);
   write({[claimPath]:claim('passed'),[bonusPath]:0},uid,c.cutoff,false);
-  write({[claimPath]:claim('accepted'),[bonusPath]:0},uid,c.cutoff);
+  write({[claimPath]:claim('accepted'),[bonusPath]:0},uid,c.cutoff,false);
+  write({[claimPath]:claim('accepted'),[bonusPath]:0,[clubPath]:null},uid,c.cutoff);
   write({[claimPath]:claim('accepted'),[bonusPath]:0},'intruder',c.cutoff,false);
   write({[`${c.privatePath}/users/${uid}/dates/2026-11-02`]:{uid}},uid,c.cutoff,false);
   write({'groupChallengeOctober2026/a/name':'Ann'},'a',c.startAt-1);
@@ -62,8 +70,9 @@ async function main(){
     assert.equal(counts.reduce((a,b)=>a+b,0),size?29:0);
     if(size)assert.ok(Math.max(...counts)-Math.min(...counts)<=1);
   }
-  let saved=null,version=0,writes=0;
+  let saved=null,version=0,writes=0,clubUpdates={};
   const rest=async(path,options={})=>{
+    if(path==='club400November2026'&&options.method==='PATCH'){Object.assign(clubUpdates,JSON.parse(options.body));return {status:200};}
     assert.ok([c.privatePath,c.settings,c.roster].includes(path));
     if(options.method==='PUT'){
       if(options.headers['if-match']!==`"v${version}"`)return {status:412};
@@ -76,6 +85,10 @@ async function main(){
   await runJob({rest,mode:'generate',now:c.cutoff-1});assert.equal(writes,0);
   await Promise.all([runJob({rest,mode:'generate',now:c.cutoff}),runJob({rest,mode:'generate',now:c.cutoff})]);assert.equal(writes,1);
   await runJob({rest,mode:'generate',now:c.cutoff+86400000});assert.equal(writes,1);
+  const assigned=Object.keys(saved.users).find(id=>saved.users[id].dates['2026-11-02']);
+  saved.users[assigned].claims={'2026-11-02':{uid:assigned,status:'claimed'}};
+  await runJob({rest,mode:'generate',now:c.cutoff+86400000});
+  assert.equal(clubUpdates[`2026-11-02/${assigned}`],true);assert.equal(writes,1);
   assert.throws(()=>createRest({url:'http://example.com/',token:'x'}),/HTTPS origin/);
   console.log('PASS: Spark rules, server timestamps, unique names, owner/day guards, October cutoff, private reads, atomic bonuses, balanced scheduling and ETag concurrency.');
 }

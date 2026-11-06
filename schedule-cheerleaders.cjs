@@ -1,6 +1,7 @@
 // Runs on GitHub's standard runner. No Firebase Functions, SDK, or key file.
 const {createHash} = require('node:crypto');
 const {getConfig,pacificMidnight} = require('./challenge-config.cjs');
+const {activityPoints}=require('./club400.cjs');
 function makePrivateSchedule(roster, month, now) {
   const config = getConfig(month);
   if (now < config.cutoff) throw new Error('The Pacific joining cutoff has not passed.');
@@ -47,7 +48,16 @@ async function runJob({rest, month = '2026-11', mode = 'check', now = Date.now()
     return created.status === 412 ? 'Settings already initialized by another run.' : 'November joining is open. October data was not changed.';
   }
   if (now < config.cutoff) return 'Waiting until November 1 has ended in Pacific time. No data was changed.';
-  if (existing?.status?.generatedAt) return 'The schedule is already saved; left unchanged.';
+  if (existing?.status?.generatedAt) {
+    const roster=await (await rest(config.roster)).json();
+    const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(now)).map(part=>[part.type,part.value]));
+    const today=`${parts.year}-${parts.month}-${parts.day}`,updates={};
+    for(const [uid,member]of Object.entries(existing.users||{}))for(const [date,claim]of Object.entries(member.claims||{})) {
+      if(date<today&&claim.status==='claimed'&&member.dates?.[date]?.uid===uid&&activityPoints(roster?.[uid]?.entries?.[date],date)>=300)updates[`${date}/${uid}`]=true;
+    }
+    if(Object.keys(updates).length)await rest('club400November2026',{method:'PATCH',body:JSON.stringify(updates)});
+    return 'The schedule is unchanged. Qualifying completed-day 400 Club entries were updated.';
+  }
   if (now >= config.endAt) return 'November 2026 has ended. No schedule was created.';
   if (existing !== null) throw new Error('Unexpected existing private data. Stopped rather than replacing it.');
   const rosterResponse = await rest(config.roster);

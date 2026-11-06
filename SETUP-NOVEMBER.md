@@ -1,5 +1,23 @@
 # November launch — Firebase Spark, GitHub Actions, no Cloud Functions
 
+## November 6 update: 400 Club includes cheerleader bonuses
+
+For an already-running November app, no OIDC, identity, or joining setup needs
+repeating. Publish the updated `database.rules.json` in Firebase **before** pushing
+the updated app, because the app now reads verified `club400November2026` flags.
+The rules compute activity points and require a claimed private bonus before
+allowing a qualification flag. Score reductions and bonus undo clear it atomically.
+Only eligibility is shared, never a participant's schedule or Pass decision.
+
+After committing/pushing the files, optionally run **Monthly cheerleaders** in
+**generate** mode once to include qualifying completed days from before this
+update. The saved schedule and claims are left unchanged; only verified club
+entries are added. Participants' updated apps also synchronize their own eligible
+past dates when opened. No scores or participant identities are migrated.
+
+300 activity points plus 100 claimed bonus points qualifies, as do 400 activity
+points alone. The list remains yesterday's Pacific-date club and says "400 pts".
+
 The implementation is prepared locally. Nothing has been pushed, deployed, or
 configured in your Google/GitHub accounts by this work. Keep the existing project,
 website address, manifest ID, and browser authentication key. No reinstall or
@@ -84,8 +102,8 @@ project `demo-group-fit` on loopback ports; never your production database.
 
 Use `node preview.cjs` and the test URLs in README to review November. Test a new
 participant, a returning participant, opt-out, and private dates. When ready,
-commit and push using your normal GitHub Pages publishing process. Version 26
-and cache v26 deliver the update to existing installations. This repository's
+commit and push using your normal GitHub Pages publishing process. Version 27
+and cache v27 deliver the update to existing installations. This repository's
 website address must stay the same.
 
 The first published version still opens October until the Pacific boundary.

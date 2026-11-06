@@ -71,6 +71,7 @@ let installPrompt = null;
 let pendingOwnedSaves = 0;
 let goalCelebratedThisVisit = false;
 let teamCheerTotals = {};
+let bonusClubMembers = {};
 const unsavedActivityInputs = new Set();
 
 const els = {};
@@ -379,18 +380,29 @@ function monthlyNameKey(name) {
 
 async function fetchMonthlyPrivate() {
   const uid = authSession.localId;
-  const [own, status, bonuses] = await Promise.all([
+  const [own, status, bonuses, club] = await Promise.all([
     firebaseRequest(`cheerleaderPrivateNovember2026/users/${uid}`),
     firebaseRequest('cheerleaderPrivateNovember2026/status'),
-    firebaseRequest('cheerleaderBonusNovember2026')
+    firebaseRequest('cheerleaderBonusNovember2026'),firebaseRequest('club400November2026')
   ]);
-  if (![own,status,bonuses].every(response => response.ok)) throw new Error('Cheerleader updates are unavailable.');
-  const [mine, state, totals] = await Promise.all([own.json(),status.json(),bonuses.json()]);
+  if (![own,status,bonuses,club].every(response => response.ok)) throw new Error('Cheerleader updates are unavailable.');
+  const [mine, state, totals, members] = await Promise.all([own.json(),status.json(),bonuses.json(),club.json()]);
   cheerSchedule = mine?.dates || {};
   cheerClaims = mine?.claims || {};
   automaticCheerSchedule = state?.generatedAt ? {private:true} : null;
   teamCheerTotals = totals || {};
+  bonusClubMembers = members || {};
   cheerReady = true;
+  const updates={};
+  for(const key of Object.keys(cheerSchedule)) {
+    const qualifies=cheerBonus(uid,key)===100&&computePlayerTotalsForDate(uid,key)>=300;
+    if(qualifies!==!!bonusClubMembers[key]?.[uid])updates[`club400November2026/${key}/${uid}`]=qualifies?true:null;
+  }
+  if(Object.keys(updates).length){
+    const response=await firebaseRequest('',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)});
+    if(!response.ok)throw new Error('Could not update 400 Club eligibility.');
+    for(const [path,value]of Object.entries(updates)){const [,key,id]=path.split('/');bonusClubMembers[key]||={};if(value)bonusClubMembers[key][id]=true;else delete bonusClubMembers[key][id];}
+  }
 }
 
 async function fetchLiveMonth() {
@@ -536,11 +548,14 @@ async function saveOwnedRecord(dateKey = actualTodayKey()) {
     const date = dateKey;
     const entry = entriesByUid[ownedUid]?.[date] || {selected:[],values:{}};
     const empty = !entry.rest && !entry.selected?.length;
-    const response = await firebaseRequest(`${CHALLENGE_DATA_PATH}/${ownedUid}/entries/${date}`, {
-      method:empty ? 'DELETE' : 'PUT',headers:{'Content-Type':'application/json'},
-      ...(!empty ? {body:JSON.stringify(entry.rest ? {rest:true} : entry)} : {})
-    });
+    const qualifies=cheerBonus(ownedUid,date)===100&&computePlayerTotalsForDate(ownedUid,date)>=300;
+    const updates={
+      [`${CHALLENGE_DATA_PATH}/${ownedUid}/entries/${date}`]:empty?null:entry.rest?{rest:true}:entry,
+      [`club400November2026/${date}/${ownedUid}`]:qualifies?true:null
+    };
+    const response = await firebaseRequest('',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)});
     if (!response.ok) throw new Error('Could not save this entry. Only today’s Pacific-date entry is editable.');
+    bonusClubMembers[date]||={};if(qualifies)bonusClubMembers[date][ownedUid]=true;else delete bonusClubMembers[date][ownedUid];
     return;
   }
 
@@ -1399,11 +1414,17 @@ function renderDailyHistory() {
   }
 }
 
+function is400ClubMember(uid,dateKey) {
+  if(!isChallengeDateKey(dateKey))return false;
+  const activity=computePlayerTotalsForDate(uid,dateKey);
+  return activity>=400 || (activity>=300 && (cheerBonus(uid,dateKey)===100 || (!TEST_MODE && MONTH_KEY!=='2026-10' && bonusClubMembers[dateKey]?.[uid]===true)));
+}
+
 function renderClubList() {
   const previousDay = new Date(getCurrentDate().getTime() - ONE_DAY_MS);
   const previousKey = formatDateKey(previousDay);
   const names = participants
-    .filter((participant) => computePlayerTotalsForDate(participant.uid, previousKey) >= 400)
+    .filter((participant) => is400ClubMember(participant.uid, previousKey))
     .map((participant) => participant.name);
 
   els.clubList.replaceChildren();
